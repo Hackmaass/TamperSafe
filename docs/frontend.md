@@ -37,7 +37,7 @@ Build these top to bottom. Everything here is pitch copy — pull the facts from
 
 3. **How it works** (map this straight from `docs/ARCHITECTURE.md` §2–4, in plain language, 4 steps)
    1. **Seal** — the depot locks the box with a servo latch; the payment is already in escrow.
-   2. **Transit** — the box watches its lid (IR), contents (ultrasonic), motion (MPU6050) and location (GPS), and now also the sealed package's identity via an RFID tag.
+   2. **Transit** — the box watches its lid (high-sensitivity IR sensor on CH15), motion & shock (MPU6050), and location (GPS), and package identity via an RFID tag.
    3. **Report** — the box reports to a relayer over Wi-Fi, which writes every state change on-chain.
    4. **Settle** — a clean delivery pays the seller; any tamper refunds the buyer and slashes the courier's bond to the seller.
    - A simple diagram is enough: reuse the box → relayer → chain → dashboard shape from `docs/ARCHITECTURE.md` §2 as an SVG or a hand-drawn-style image in `landing/assets/`. Don't just screenshot the ASCII box from the doc.

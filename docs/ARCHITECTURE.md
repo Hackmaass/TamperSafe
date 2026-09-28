@@ -204,8 +204,8 @@ Errors: `StaleSeq(orderId, seq, latestSeq)` — `anchor` reverts when `seq` does
 
 | Code | Name | Source |
 | :--- | :--- | :--- |
-| 1 | `LID_OPENED` | IR lid sensor while SEALED |
-| 2 | `CONTENTS_DISTURBED` | ultrasonic deviation from baseline while SEALED |
+| 1 | `LID_OPENED` | IR lid sensor (CH15) while SEALED — primary physical tamper |
+| 2 | `CONTENTS_DISTURBED` | (Optional/legacy: ultrasonic sensor dropped by team for hardware simplicity) |
 | 3 | `POWER_INTERRUPTED` | box booted with NVS state SEALED |
 
 **Alert codes** are evidence only and go through `Anchor.logAlert`:
@@ -275,8 +275,8 @@ stateDiagram-v2
 
 | Task | Rate |
 | :--- | :--- |
-| IR read | 20 Hz |
-| Ultrasonic (`pulseIn` timeout 25 ms) | 10 Hz |
+| IR lid read (CH15) | 20 Hz |
+| Ultrasonic | DROPPED (hardware simplicity) |
 | MPU6050 | 20 Hz |
 | GPS UART parse | every loop |
 | `nr.updateSensors()` (battery, button) | 2 Hz |

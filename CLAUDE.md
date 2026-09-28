@@ -4,10 +4,11 @@
 - Project chosen: **TamperSafe** (below). The planning docs in `docs/` are written.
 - Hacking window: 28 Sept 2026, 15:30 IST → 29 Sept, 15:30 IST (confirm the end time with the organisers).
 - **Gate lifted 28 Sept 2026.** The team said "start". Code, contracts, firmware and scaffolds may now be written, per `docs/IMPLEMENTATION_PLAN.md`.
-- M2 (hardware bring-up) and M4 (firmware main) are blocked until the team fills `HARDWARE.md` §1–2 (every pin is TBD) and copies the Neurick manual into `docs/neurick/`. Tracks A (contracts) and C (relayer/dashboard) proceed now.
+- M2 (hardware bring-up) and M4's remaining pin-dependent work (RFID driver) are blocked on RFID pins only — IR (CH15/GPIO15) and GPS (CH11/GPIO11) are confirmed, `docs/neurick/Neurick_Manual.pdf` has been copied in and read. Tracks A (contracts) and C (relayer/dashboard) proceed now.
 - **RFID added for the demo (28 Sept):** an MFRC522 reader binds the sealed package's identity via its tag UID. It is evidence-only (`Alert PACKAGE_MISMATCH`, code 16) and never gates an escrow transition — no contract or protocol change. See `docs/ARCHITECTURE.md` §6 and `docs/HARDWARE.md` §1/§2/§5.
-- **Neurick library source received (28 Sept), copied to `docs/neurick/`.** It's the STM32 command-protocol library (`Newrick.h`/`.cpp`), not a P1 header pinout manual — HARDWARE.md §1–2 (sensor pins) are still TBD. It did correct a real API mismatch: `servo()` takes channels **S1, S2, S4** (no S3) — CLAUDE.md and HARDWARE.md were wrong about S3 and are now fixed.
-- **Sensors confirmed in hand (28 Sept, from the team's `sensors.xlsx`):** HC-SR04, NEO-6M GPS, RC522/MFRC522 RFID, LDR, microSD, and an **MG995** latch servo (confirmed — a beefier part than the originally planned SG90/MG90S). The IR lid sensor's exact voltage/output polarity is still unconfirmed; the team is considering swapping it for a second ultrasonic sensor instead — **deferred, not yet decided, no doc changes made.**
+- **Neurick library source received (28 Sept), copied to `docs/neurick/`.** It's the STM32 command-protocol library (`Newrick.h`/`.cpp`), not a P1 header pinout manual. It appeared to correct an API mismatch: `servo()` takes channels **S1, S2, S4** (no S3) — CLAUDE.md and HARDWARE.md were changed to match, and firmware (`tampersafe_box.ino`, `servo_angles.ino`) currently codes against S1/S2/S4.
+- **UNRESOLVED (28 Sept): servo channel conflict.** `docs/neurick/Neurick_Manual.pdf` (received later the same day) states the opposite — `servo(s1_angle, s2_angle, s3_angle)`, three physical ports **Servo 1/2/3**, no S4 anywhere. Two "confirmed" sources disagree on live firmware. Team will check the physical board (port silkscreen + the actual `Newrick.h` on hand) before this is touched again — do not change servo code or docs on either side of this until confirmed against real hardware.
+- **Hardware architecture simplified (28 Sept):** Team decision to completely drop the ultrasonic (HC-SR04) and external motion (PIR) sensors. Lid tamper sensing is handled exclusively by the **Infrared obstacle sensor on CH15 (GPIO 15)**. Motion/shock remains with the onboard MPU6050 (0x68).
 - **M1 (contracts) done, reviewed against every invariant, pushed** — 68 tests. **M3's protocol module done** (`relayer/src/protocol.ts` + `relayer/test/vectors.json`), cross-checked independently with `openssl`. **M4's non-pin-dependent firmware done** (skeleton, NVS latch, network task, MPU alerts, servo) — compiles clean, but the 4 on-box scenarios still need confirmed pins and a real box.
 - **Wi-Fi is the only box↔laptop transport, for the demo only** (team confirmed — no USB-serial telemetry path).
 - **`docs/ARCHITECTURE.md` §10 now has state-aware relayer rules**, added because firmware re-emits TAMPER on every TAMPERED boot: the relayer must check on-chain order status before acting, not just react to the device event, or a repeat TAMPER/UNLOCK causes an endless revert-retry loop.
@@ -19,10 +20,10 @@ A tamper-evident delivery box with on-chain escrow. The buyer's payment sits in 
 How it works:
 1. At the depot the box locks itself with a servo latch.
 2. In transit it watches:
-   - its lid (IR)
-   - its contents (ultrasonic)
-   - its motion (onboard MPU6050)
-   - its location (GPS)
+   - its lid (IR on CH15)
+   - its motion/shock (onboard MPU6050)
+   - its location (GPS on CH11)
+   - its package identity (RFID tag)
 3. It reports to a laptop relayer, which writes state changes to chain.
 4. Settlement:
    - A clean delivery pays the seller.

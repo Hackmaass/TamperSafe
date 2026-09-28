@@ -8,14 +8,13 @@ Board facts and wiring rules live in `CLAUDE.md` and the `neurick-firmware` skil
 
 | Item | Planned part | Actual model | Supply | Check |
 | :--- | :--- | :--- | :--- | :--- |
-| Ultrasonic | HC-SR04 | **HC-SR04** (`sensors.xlsx` #5, confirmed 5 V variant) | 5 V | ECHO needs the 1k/2k divider (not the 3.3 V HC-SR04P variant) |
-| IR lid sensor | FC-51 or TCRT5000 reflective module, digital OUT | **Generic IR obstacle-avoidance module** (`sensors.xlsx` #6, "Infrared Obstacle Detection 2-30cm") — same reflective digital-OUT-with-threshold-pot family as FC-51/TCRT5000, but confirm the exact board's supply voltage and OUT polarity (active-low vs active-high) physically before wiring | ☐ TBD — check | At 5 V, OUT needs a divider |
-| GPS | u-blox NEO-6M (GY-NEO6MV2) + patch antenna | **NEO-6M** (`sensors.xlsx` #17, exact match) | 3.3–5 V | Measure that TX idles ≤ 3.3 V |
-| Latch servo | SG90 / MG90S | **MG995** (confirmed in hand) — a much higher-torque/current part than originally planned (SG90/MG90S); fine on the Neurick servo port, just note it draws more current | Neurick servo port | Needs the 12 V battery switched on |
-| Box | Cardboard or acrylic, hinged lid, side compartment for board + battery | ☐ | — | Window so the OLED is visible |
-| Passives | 1 kΩ + 2 kΩ resistors (ECHO divider), jumpers, foam padding | ☐ | — | — |
-| Neurick P1 header map | from the Neurick manual | ☐ (library source `docs/neurick/Newrick.h`/`.cpp` received 2026-09-28; confirms the STM32 I2C command protocol and `servo(s1,s2,s4)` — no S3. Still no physical P1 header pinout) | — | Needed to fill the header column in §2 |
-| RFID reader | MFRC522 (13.56 MHz, SPI) + at least one tag/card per demo package | **RC522 (MFRC522 chip)** (`sensors.xlsx` #10, exact match) | 3.3 V | SPI, not I2C — needs its own SCK/MOSI/MISO/SDA(SS)/RST pins, separate from the shared I2C bus |
+| Ultrasonic | HC-SR04 | **DROPPED** | — | Dropped for simplicity; lid tamper is handled purely by the IR sensor. |
+| Motion (PIR) | HC-SR501 | **DROPPED** | — | Dropped for simplicity. Onboard MPU6050 handles shock/tilt if enabled. |
+| IR lid sensor | FC-51 / TCRT5000 | **FC-51 IR obstacle module (CH15 / GPIO 15)** | 3.3 V | Primary physical tamper sensor; senses lid reflection. |
+| GPS | u-blox NEO-6M | **NEO-6M (CH11)** | 3.3–5 V | Evidence only. |
+| Latch servo | MG995 | **MG995 (Port S2)** | 12 V battery | High-torque servo latch. **Calibrated: LOCK = 180°, UNLOCK = 90°.** |
+| Box | Cardboard/acrylic | **Physical demo box** | — | IR sensor on rim facing lid underside; servo latch inside. |
+| RFID reader | RC522 | ☐ TBD — pin not yet confirmed | 3.3 V | SPI, needs its own SCK/MOSI/MISO/SDA(SS)/RST — do not reuse the shared I2C pins |
 | Optional | LDR + 10 kΩ, microSD card | **LDR** (`sensors.xlsx` #18) and **8 GB Sandisk microSD** (`sensors.xlsx` #1) both confirmed in hand | 3.3 V | Stretch only |
 
 ---
@@ -24,21 +23,18 @@ Board facts and wiring rules live in `CLAUDE.md` and the `neurick-firmware` skil
 
 The GPIOs below are **proposed**. They avoid the unavailable pins, the strapping pins and ADC-only needs. Every header pin is **TBD: confirm against the Neurick manual**. A TBD row blocks any firmware that uses that pin.
 
-| Function | Module pin | ESP32-S3 GPIO | P1 header pin | Supply | Level handling |
+| Function | Module pin | ESP32-S3 GPIO | Extension / P1 Pin | Supply | Level handling |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GPS → ESP (UART1 RX) | TX | 17 | TBD | 3.3 V (5 V if the module needs it) | Direct if TX ≤ 3.3 V, else 1k/2k divider |
-| ESP → GPS (UART1 TX) | RX | 18 | TBD | — | Optional (config only) |
-| Ultrasonic trigger | TRIG | 12 | TBD | 5 V | Direct |
-| Ultrasonic echo | ECHO | 13 | TBD | 5 V | **1k/2k divider** → 3.3 V |
-| IR lid sensor | OUT | 14 | TBD | 3.3 V | Direct |
-| Latch servo | signal | STM32 servo **S1** | servo port | 12 V battery | `nr.servo(lockAngle, S2_REST, S4_REST)`. The real API is `servo(s1_angle, s2_angle, s4_angle)` — channels S1, S2, **S4** (no S3). All three are set together every call, so keep S2/S4 constants |
-| Motion | — | onboard MPU6050 `0x68` | — | — | Shared I2C bus |
-| Status | — | onboard OLED `0x3C` | — | — | Shared I2C bus |
-| Depot / demo button | — | STM32 `buttonState` | — | — | Long press in IDLE = local reset (demo) |
-| Stretch: LDR | AO | 4 (ADC1) | TBD | 3.3 V divider | — |
-| RFID SCK / MOSI / MISO | MFRC522 SPI | TBD | TBD | 3.3 V | Direct. Confirm against the manual which P1 pins carry the ESP32-S3's SPI bus |
-| RFID SDA (SS/CS) | MFRC522 | TBD | TBD | 3.3 V | Direct, any free GPIO |
-| RFID RST | MFRC522 | TBD | TBD | 3.3 V | Direct, any free GPIO |
+| **IR lid sensor** | OUT | **GPIO 15** | **CH15** (Header Pin 10) | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. |
+| **GPS → ESP (UART1 RX)** | TX | **GPIO 11** | **CH11** (Header Pin 28) | 3.3 V / 5 V | Direct if TX ≤ 3.3 V. Evidence-only. |
+| **Latch servo** | Signal | STM32 servo **S2** | **Servo 2 port** | 12 V battery | `nr.servo(LOCK, LOCK, LOCK)` / `nr.servo(UNLOCK, UNLOCK, UNLOCK)`. All three channels commanded together. **LOCK = 180°, UNLOCK = 90°** (calibrated 29-Sep-2026). |
+| **RFID Reader** | SPI | MFRC522 | TBD | 3.3 V | Package binding via RFID tag UID. CH2/GPIO2 was proposed but is unavailable (onboard hardware, per CLAUDE.md) — needs a real proposal against the Neurick manual, not yet confirmed. |
+| **Onboard LDR** | AO | ADC1 (GPIO 4) | Extension board | 3.3 V | Interior light sensor for box integrity. |
+| **Motion (PIR)** | — | — | **DROPPED** | — | Dropped for simplicity. |
+| **Ultrasonic** | — | — | **DROPPED** | — | Dropped for simplicity. |
+| **Motion / Shock / Tilt** | — | onboard MPU6050 `0x68` | Shared I2C (GPIO 8/9) | — | Built into Newrick board. |
+| **Status Display** | — | onboard OLED `0x3C` | Shared I2C (GPIO 8/9) | — | Built into Newrick board. |
+| **Depot / demo button**| — | STM32 `buttonState` | — | — | Long press in IDLE = local reset (demo). |
 
 GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the stretch LDR is analog, so it takes the ADC1 pin. The RFID reader is SPI, so it needs its own dedicated pins in addition to the shared I2C bus (SDA=8, SCL=9) — do not reuse those two.
 
@@ -85,15 +81,12 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 
 | Signal | Sampling | Rule | Result |
 | :--- | :--- | :--- | :--- |
-| IR lid | 20 Hz | Lid reads open for 4 consecutive samples (200 ms) in SEALED | TAMPER `LID_OPENED` (1) |
-| Ultrasonic | 10 Hz, median of last 5 | `abs(d − baseline) > 20 mm` sustained 1 s in SEALED | TAMPER `CONTENTS_DISTURBED` (2) |
-| Ultrasonic health | 10 Hz | 10 consecutive invalid reads (0 or timeout) | ALERT `SENSOR_FAULT` (15) |
-| Baseline | — | Median of 20 reads over 2 s after the servo locks | NVS `baseline_mm`; carried in the SEALED event |
-| Boot | — | NVS state is SEALED at boot | TAMPER `POWER_INTERRUPTED` (3) |
-| Shock | 20 Hz | `abs(accel) > 2.5 g`, at most 1 per 10 s | ALERT `SHOCK` (10) |
-| Tilt | 20 Hz | Tilt > 60° for 3 s | ALERT `TILT` (11) |
-| GPS | every loop | Valid when TinyGPS location is valid and its age < 5 s | Evidence only |
-| RFID tag | 1 Hz | Read tag UID at seal (baseline). While SEALED, tag UID absent or changed for 3 consecutive reads (3 s) | ALERT `PACKAGE_MISMATCH` (16) — evidence only, never TAMPER |
+| **IR lid (CH15)** | 20 Hz | Lid reads open for 4 consecutive samples (200 ms) in SEALED | TAMPER `LID_OPENED` (1) |
+| **Boot check** | — | NVS state is SEALED at boot | TAMPER `POWER_INTERRUPTED` (3) |
+| **Shock** | 20 Hz | `abs(accel) > 2.5 g`, at most 1 per 10 s | ALERT `SHOCK` (10) |
+| **Tilt** | 20 Hz | Tilt > 60° for 3 s | ALERT `TILT` (11) |
+| **GPS** | every loop | Valid when TinyGPS location is valid and its age < 5 s | Evidence only |
+| **RFID tag** | 1 Hz | Read tag UID at seal. While SEALED, tag UID absent or changed for 3 consecutive reads (3 s) | ALERT `PACKAGE_MISMATCH` (16) — evidence only, never TAMPER |
 | Battery | 2 Hz | `batteryVolts` < 10.5 V → refuse SEAL, show `LOW BATT` | — |
 | Servo | — | LOCK angle = ☐, UNLOCK angle = ☐ | — |
 

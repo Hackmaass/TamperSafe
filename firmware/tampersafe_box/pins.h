@@ -1,31 +1,32 @@
 #pragma once
-// TamperSafe box -- proposed GPIOs, copied verbatim from docs/HARDWARE.md §2.
+// TamperSafe box -- GPIOs, copied verbatim from docs/HARDWARE.md §2.
 //
-// EVERY pin below is UNCONFIRMED as of this pass: HARDWARE.md §1-2 are still
-// TBD/☐. Per the neurick-firmware skill and CLAUDE.md's board discipline, a
-// sketch may only use pins the team has confirmed. A TBD row blocks that
-// pin's code.
+// As of this pass, IR lid (CH15/GPIO15) and GPS (CH11/GPIO11) are CONFIRMED.
+// Ultrasonic is DROPPED (no longer a pin to confirm). RFID is still TBD --
+// HARDWARE.md §2 has no valid proposal for it (CH2/GPIO2 was proposed and
+// rejected: GPIO2 is unavailable per CLAUDE.md). Per the neurick-firmware
+// skill and CLAUDE.md's board discipline, a sketch may only use pins the
+// team has confirmed. A TBD row blocks that pin's code.
 //
-// PINS_CONFIRMED gates all of it. Leave it 0 until the team fills the TBD
-// rows in HARDWARE.md §2 AND replaces sensors_stub.cpp's stub functions with
-// real drivers. Flipping it to 1 without doing that second part is caught at
-// compile time below (see sensors_stub.cpp's #error), so a half-stubbed box
-// can't ship silently.
+// PINS_CONFIRMED still gates the whole file: leave it 0 until RFID gets a
+// real, valid pin proposal in HARDWARE.md §2 AND sensors_stub.cpp's
+// readGPS()/readRFID() are replaced with real drivers (readLidIR() already
+// is one). Flipping it to 1 before that is caught at compile time (see
+// sensors_stub.cpp's #error), so a half-stubbed box can't ship silently.
 #define PINS_CONFIRMED 0
 
 // --- GPS (u-blox NEO-6M), UART1 ---------------------------------------------
-#define PIN_GPS_RX 17 // UNCONFIRMED - TBD in HARDWARE.md §2 (module TX -> here)
-#define PIN_GPS_TX 18 // UNCONFIRMED - TBD in HARDWARE.md §2 (ESP TX -> module RX, optional)
+#define PIN_GPS_RX 11 // CH11 (module TX -> here)
+#define PIN_GPS_TX -1 // Unused (listen-only)
 
-// --- Ultrasonic (HC-SR04), contents sensor ----------------------------------
-#define PIN_ULTRASONIC_TRIG 12 // UNCONFIRMED - TBD in HARDWARE.md §2
-#define PIN_ULTRASONIC_ECHO 13 // UNCONFIRMED - TBD in HARDWARE.md §2 (needs 1k/2k divider to 3.3V)
+// --- Ultrasonic (HC-SR04) ----------------------------------------------------
+// DROPPED by team decision (28 Sept). Lid tamper is handled purely by the IR sensor.
 
 // --- IR lid sensor (FC-51 / TCRT5000), digital OUT --------------------------
-#define PIN_IR_LID 14 // UNCONFIRMED - TBD in HARDWARE.md §2
+#define PIN_IR_LID 15 // CH15 (Header Pin 10 / GPIO 15)
 
-// --- Stretch: LDR (ADC1) -----------------------------------------------------
-#define PIN_LDR_AO 4 // UNCONFIRMED - TBD in HARDWARE.md §2 (ADC1, stretch only)
+// --- Onboard LDR (ADC1) -----------------------------------------------------
+#define PIN_LDR_AO 4 // Extension board LDR on GPIO 4
 
 // --- RFID (MFRC522, SPI) -----------------------------------------------------
 // HARDWARE.md §2 has no proposed GPIO for any of these yet (all rows are

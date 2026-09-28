@@ -1,65 +1,162 @@
-// TamperSafe bring-up: servo angle sweep.
-//
-// Sweeps the latch servo (S1 channel) through a small test range so the
-// team can find the real LOCK and UNLOCK angles on the physical box, per
-// docs/HARDWARE.md §4/§5/§7. Watch the horn under the hook: LOCK should
-// swing it fully under the hook (lid cannot be lifted), UNLOCK should clear
-// it (lid opens freely).
-//
-// nr.servo(s1, s2, s4) sets ALL THREE channels every call -- there is no
-// S3 (see docs/neurick/Newrick.h). S2/S4 are held at a neutral rest angle
-// throughout since this box only uses S1 for the latch.
-//
-// Needs the 12V battery ON (servos run off the Neurick servo port, not
-// USB) -- see docs/HARDWARE.md §3.
-
 #include <Newrick.h>
 
-Newrick nr;
+Newrick neurick;
 
-#define S2_REST 90
-#define S4_REST 90
+#define PIN_IR_LID 15 // CH15 (FC-51 Infrared Lid Sensor)
 
-// Small test sweep -- deliberately NOT 0/180 (a servo's mechanical hard
-// stops). Commanding an un-mounted or freshly-mounted horn straight to a
-// hard stop can jam it against the hook before the real range is known.
-// NOT the calibrated LOCK/UNLOCK angles either -- write those into
-// docs/HARDWARE.md §5 once found (this sketch's job is to help find them).
-static const uint8_t testAngles[] = {10, 45, 90, 135, 170, 135, 90, 45};
+int currentAngle = 90;
+int lockAngle    = 170;
+int unlockAngle  = 10;
+
+void printStatus() {
+  int ir = digitalRead(PIN_IR_LID);
+  Serial.printf("--> CURRENT: %3d deg | [L]OCK: %3d deg | [U]NLOCK: %3d deg | Lid(CH15): %s\n",
+                currentAngle, lockAngle, unlockAngle,
+                (ir == 0 ? "CLOSED [OK]" : "OPEN   [!!]"));
+}
+
+void setServoAngle(int angle) {
+  if (angle < 0)   angle = 0;
+  if (angle > 180) angle = 180;
+  currentAngle = angle;
+
+  // Command all 3 servo channels (S1, S2, S4) so Servo 2 moves
+  neurick.servo((uint8_t)currentAngle, (uint8_t)currentAngle, (uint8_t)currentAngle);
+
+  printStatus();
+}
+
+void printBanner() {
+  Serial.println("\n=======================================================");
+  Serial.println("       TAMPERSAFE INTERACTIVE SERVO CALIBRATION        ");
+  Serial.println("=======================================================");
+  Serial.println("CONTROLS (Serial Monitor or Terminal):");
+  Serial.println("  • UP / RIGHT Arrow or 'w' / '+' : Increase angle (+1 / +5 deg)");
+  Serial.println("  • DOWN / LEFT Arrow or 's' / '-' : Decrease angle (-1 / -5 deg)");
+  Serial.println("  • Enter any number 0 - 180        : Jump directly (e.g. 45, 120)");
+  Serial.println("  • Press 'L'                       : MARK current angle as LOCK");
+  Serial.println("  • Press 'U'                       : MARK current angle as UNLOCK");
+  Serial.println("  • Press 'T'                       : TEST cycle (LOCK -> UNLOCK)");
+  Serial.println("  • Press '?'                       : Show this menu again");
+  Serial.println("=======================================================\n");
+}
+
+void printMarked() {
+  Serial.println("\n***************************************************");
+  Serial.printf(">>> SAVED CONFIGURATION <<<\n");
+  Serial.printf("    LOCK_ANGLE   = %d deg\n", lockAngle);
+  Serial.printf("    UNLOCK_ANGLE = %d deg\n", unlockAngle);
+  Serial.println("***************************************************\n");
+}
+
+void runTestCycle() {
+  Serial.println("\n--- RUNNING LATCH TEST CYCLE ---");
+  Serial.printf("1. Moving to LOCK position (%d deg)...\n", lockAngle);
+  setServoAngle(lockAngle);
+  delay(2000);
+  Serial.printf("2. Moving to UNLOCK position (%d deg)...\n", unlockAngle);
+  setServoAngle(unlockAngle);
+  delay(2000);
+  Serial.println("--- TEST CYCLE FINISHED ---\n");
+}
 
 void setup() {
   Serial.begin(115200);
+
+  // Exact clean startup sequence verified on hardware
+  neurick.begin();
   delay(2000);
 
-  nr.begin();
+  pinMode(PIN_IR_LID, INPUT_PULLUP);
 
-  Serial.println("TamperSafe bring-up: servo_angles");
-  Serial.println("Watch the S1 horn against the lid hook at each angle below.");
-  Serial.println("Move slowly (this sketch waits 2s per step) -- avoid repeated");
-  Serial.println("re-commanding per docs/HARDWARE.md §3.");
-  Serial.println("Type a number (0-180) + Enter in the Serial Monitor at any time");
-  Serial.println("to jump straight to that angle instead of waiting for the sweep.");
+  printBanner();
+  setServoAngle(90); // Center position
 }
 
 void loop() {
-  // Manual override: type an angle in the Serial Monitor to test one exact
-  // value instead of waiting through the sweep -- useful once you're
-  // narrowing in on the real LOCK/UNLOCK angle.
   if (Serial.available()) {
-    long angle = Serial.parseInt();
-    while (Serial.available()) Serial.read(); // discard the rest of the line
-    if (angle >= 0 && angle <= 180) {
-      Serial.printf("(manual) S1 -> %ld deg\n", angle);
-      nr.servo((uint8_t)angle, S2_REST, S4_REST);
-      delay(500); // let it settle before accepting the next command
+    char c = Serial.read();
+
+    // Check for ANSI Escape Sequences (Arrow keys: \x1B [ A/B/C/D)
+    if (c == 0x1B) {
+      unsigned long start = millis();
+      while (!Serial.available() && millis() - start < 50);
+      if (Serial.available() && Serial.read() == '[') {
+        start = millis();
+        while (!Serial.available() && millis() - start < 50);
+        if (Serial.available()) {
+          char arrow = Serial.read();
+          if (arrow == 'A') { // UP arrow: +1 deg
+            setServoAngle(currentAngle + 1);
+            return;
+          } else if (arrow == 'B') { // DOWN arrow: -1 deg
+            setServoAngle(currentAngle - 1);
+            return;
+          } else if (arrow == 'C') { // RIGHT arrow: +5 deg
+            setServoAngle(currentAngle + 5);
+            return;
+          } else if (arrow == 'D') { // LEFT arrow: -5 deg
+            setServoAngle(currentAngle - 5);
+            return;
+          }
+        }
+      }
       return;
+    }
+
+    // Process single-key shortcuts
+    if (c == '+' || c == '=') {
+      setServoAngle(currentAngle + 5);
+    } else if (c == '-') {
+      setServoAngle(currentAngle - 5);
+    } else if (c == 'w' || c == 'W') {
+      setServoAngle(currentAngle + 1);
+    } else if (c == 's' || c == 'S') {
+      setServoAngle(currentAngle - 1);
+    } else if (c == 'd' || c == 'D') {
+      setServoAngle(currentAngle + 5);
+    } else if (c == 'a' || c == 'A') {
+      setServoAngle(currentAngle - 5);
+    } else if (c == 'l' || c == 'L') {
+      lockAngle = currentAngle;
+      printMarked();
+    } else if (c == 'u' || c == 'U') {
+      unlockAngle = currentAngle;
+      printMarked();
+    } else if (c == 't' || c == 'T') {
+      runTestCycle();
+    } else if (c == '?' || c == 'h' || c == 'H') {
+      printBanner();
+    } else if (c >= '0' && c <= '9') {
+      // Read multi-digit number
+      int val = c - '0';
+      unsigned long start = millis();
+      while (millis() - start < 100) {
+        if (Serial.available()) {
+          char next = Serial.peek();
+          if (next >= '0' && next <= '9') {
+            val = val * 10 + (Serial.read() - '0');
+            start = millis();
+          } else if (next == '\r' || next == '\n') {
+            Serial.read();
+            break;
+          } else {
+            break;
+          }
+        }
+      }
+      setServoAngle(val);
     }
   }
 
-  for (uint8_t angle : testAngles) {
-    if (Serial.available()) return; // a manual command arrived -- handle it next loop() instead
-    Serial.printf("S1 -> %u deg (S2/S4 held at %u)\n", angle, S2_REST);
-    nr.servo(angle, S2_REST, S4_REST);
-    delay(2000);
+  // Monitor Lid IR sensor state changes live
+  static int lastIrState = -1;
+  int currentIr = digitalRead(PIN_IR_LID);
+  if (currentIr != lastIrState) {
+    lastIrState = currentIr;
+    Serial.printf("[LID CHANGE] CH15 sensor changed to: %s\n",
+                  (currentIr == 0 ? "CLOSED [OK]" : "OPEN   [!!]"));
   }
+
+  delay(20);
 }
