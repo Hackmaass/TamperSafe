@@ -49,12 +49,13 @@ Newrick nr;
 // doesn't expose.
 Adafruit_SSD1306 display(128, 32, &Wire, -1, 400000, 400000);
 
-// --- Servo angles: placeholders only, see docs/HARDWARE.md §5 ("Servo: LOCK
-// angle = [ ], UNLOCK angle = [ ]"). Do not trust these on a real box.
-#define LOCK_ANGLE      170 // TODO: calibrate in M2
-#define UNLOCK_ANGLE     10 // TODO: calibrate in M2
-#define SERVO_S2_REST    90 // TODO: calibrate in M2 (S2 channel, unused by the latch)
-#define SERVO_S4_REST    90 // TODO: calibrate in M2 (S4 channel -- Newrick.h has no S3; see docs/neurick/Newrick.h)
+// --- Servo angles: CALIBRATED 29-Sep-2026 via bringup/servo_test.
+// The latch is on physical Servo 2. Every call commands all three channels to
+// the SAME angle, exactly as servo_test.ino does, so it works whichever name
+// (S2 / S3 / S4) the library gives the channels -- this closes the S3-vs-S4
+// signature question for this box.
+#define LOCK_ANGLE   180 // latch closed
+#define UNLOCK_ANGLE  90 // latch open
 
 #define BATTERY_MIN_VOLTS 10.5f // docs/HARDWARE.md §5
 
@@ -145,7 +146,7 @@ static void attemptSeal(uint32_t orderId, const char *cmdId) {
   ctx.baselineMm = 0; // FAKE
   nvsSaveBaseline(0);
 
-  nr.servo(LOCK_ANGLE, SERVO_S2_REST, SERVO_S4_REST); // TODO: calibrate in M2
+  nr.servo(LOCK_ANGLE, LOCK_ANGLE, LOCK_ANGLE); // calibrated
   ctx.lock = 'L';
 
   ctx.state = BoxState::SEALED;
@@ -159,7 +160,7 @@ static void doUnlock(const char *cmdId) {
   // box was already leaving on purpose.
   ctx.state = BoxState::OPEN_AUTHORIZED;
   nvsSaveState("OPEN_AUTHORIZED");
-  nr.servo(UNLOCK_ANGLE, SERVO_S2_REST, SERVO_S4_REST); // TODO: calibrate in M2
+  nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   ctx.lock = 'U';
   emitEvent("UNLOCKED", 0, cmdId);
 }
@@ -175,7 +176,7 @@ static void doReset(const char *cmdId) {
   // servo, since IDLE means "ready to be reloaded and re-sealed" and the
   // depot needs physical access either way (whether coming from TAMPERED or
   // OPEN_AUTHORIZED). Flagged for the team to confirm.
-  nr.servo(UNLOCK_ANGLE, SERVO_S2_REST, SERVO_S4_REST); // TODO: calibrate in M2
+  nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   ctx.lock = 'U';
   ctx.state = BoxState::IDLE;
   nvsSaveState("IDLE");
@@ -328,9 +329,9 @@ void setup() {
   // unlocked. See handleBoot()'s switch for why SEALED/OPEN_AUTHORIZED/
   // ARMING can never survive a reboot as themselves.
   if (ctx.state == BoxState::TAMPERED) {
-    nr.servo(LOCK_ANGLE, SERVO_S2_REST, SERVO_S4_REST); // TODO: calibrate in M2
+    nr.servo(LOCK_ANGLE, LOCK_ANGLE, LOCK_ANGLE); // calibrated
   } else {
-    nr.servo(UNLOCK_ANGLE, SERVO_S2_REST, SERVO_S4_REST); // TODO: calibrate in M2
+    nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   }
 
   networkInit(); // starts the core-0 task; safe to start after NVS/state are loaded
