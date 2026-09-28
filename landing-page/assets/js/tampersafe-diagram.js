@@ -1,5 +1,5 @@
-CustomEase.create("DeepBook", "M0,0 C0.65,0 0.35,1 1,1"), gsap.defaults({
-    ease: "DeepBook"
+CustomEase.create("TamperSafeEase", "M0,0 C0.65,0 0.35,1 1,1"), gsap.defaults({
+    ease: "TamperSafeEase"
 }), gsap.registerPlugin(ScrollTrigger, SplitText, CustomEase, MorphSVGPlugin, DrawSVGPlugin);
 const init = () => {
         initSwiper(), initIllustrationMorph()

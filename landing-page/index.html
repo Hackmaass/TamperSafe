@@ -132,6 +132,41 @@
             .navbar_layout .nav_cta-button.is--black { display: none !important; }
         }
 
+
+        /* ---- Story sections: problem, why MST, forms, limits ---- */
+        .ts-story { background:#000; color:#fff; padding:7rem 3rem; position:relative; z-index:1; border-top:1px solid #2a2f34; }
+        .ts-story .ts-wrap { max-width:1200px; margin:0 auto; }
+        .ts-eyebrow { font-family:'TWK Everett Mono', ui-monospace, Menlo, Consolas, monospace; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#EB0C0D; margin:0 0 1.75rem !important; }
+        .ts-story h2 { font-family:Twkeverett, Arial, sans-serif; font-weight:500; font-size:clamp(2rem,4.2vw,3.5rem); line-height:1.05; letter-spacing:-.03em; margin:0 0 2rem !important; max-width:18ch; }
+        .ts-lede { font-size:1.125rem; line-height:1.5; color:rgba(255,255,255,.6); max-width:60ch; margin:0 0 3rem !important; }
+        .ts-grid { display:grid; gap:1.25rem; grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .ts-grid.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .ts-card { border:1px solid #2a2f34; border-radius:6px; background:#0b0c0d; padding:1.5rem; }
+        .ts-card h3 { font-family:Twkeverett, Arial, sans-serif; font-weight:500; font-size:1.25rem; margin:0 0 1rem !important; letter-spacing:-.01em; }
+        .ts-card p { margin:0 !important; color:rgba(255,255,255,.6); line-height:1.5; font-size:.98rem; }
+        .ts-stat { border-top:2px solid #EB0C0D; padding-top:1rem; }
+        .ts-stat b { display:block; font-family:Twkeverett, Arial, sans-serif; font-weight:500; font-size:2.75rem; letter-spacing:-.03em; line-height:1; }
+        .ts-stat span { display:block; margin:.6rem 0 !important; color:rgba(255,255,255,.6); font-size:.98rem; line-height:1.4; }
+        .ts-stat a, .ts-story a.ts-link { font-family:'TWK Everett Mono', ui-monospace, monospace; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#fff; text-decoration:underline; text-underline-offset:3px; }
+        .ts-note { margin-top:1.5rem !important; font-size:.92rem; color:rgba(255,255,255,.45); max-width:70ch; line-height:1.5; }
+        .ts-contracts { width:100%; border-collapse:collapse; margin-top:2rem; }
+        .ts-contracts th { text-align:left; font-family:'TWK Everett Mono', ui-monospace, monospace; font-size:11px; font-weight:400; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.5); padding:0 1rem .6rem 0; }
+        .ts-contracts td { padding:.8rem 1rem .8rem 0; border-top:1px solid #2a2f34; font-size:.95rem; }
+        .ts-contracts td.mono { font-family:'TWK Everett Mono', ui-monospace, monospace; font-size:.85rem; word-break:break-all; }
+        .ts-chip { display:inline-block; font-family:'TWK Everett Mono', ui-monospace, monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:.15rem .55rem; border-radius:999px; border:1px solid #2a2f34; color:rgba(255,255,255,.6); }
+        .ts-chip.on { background:#fff; color:#000; border-color:#fff; }
+        .ts-contracts td.mono a.ts-link { text-transform:none; letter-spacing:0; font-size:.85rem; }
+        .ts-story ul.ts-list { margin:0 !important; padding:0; list-style:none; display:grid; gap:.9rem; }
+        .ts-story ul.ts-list li { padding-left:1.4rem; position:relative; color:rgba(255,255,255,.7); line-height:1.5; }
+        .ts-story ul.ts-list li::before { content:""; position:absolute; left:0; top:.55em; width:.55rem; height:.55rem; background:#EB0C0D; }
+        @media (max-width: 900px) {
+            .ts-story { padding:4.5rem 1.25rem; }
+            .ts-grid, .ts-grid.two { grid-template-columns:1fr; }
+            .ts-contracts thead { display:none; }
+            .ts-contracts tr { display:block; padding:.6rem 0; border-top:1px solid #2a2f34; }
+            .ts-contracts td { display:block; border:0; padding:.15rem 0; }
+        }
+
         .navbar_layout {
             pointer-events: auto !important;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
@@ -1142,6 +1177,75 @@
                 </div>
             </div>
         </section>
+                <section class="ts-story" id="problem">
+            <div class="ts-wrap">
+                <p class="ts-eyebrow">The problem</p>
+                <h2>Nobody in a delivery can verify anybody.</h2>
+                <p class="ts-lede">When a sealed package arrives wrong, there is no neutral, evidence-backed way to say who is at fault, and no consequence for the party who caused it. The courier holds the goods with nothing at stake, so disputes come down to one side's word against another's.</p>
+                <div class="ts-grid">
+                    <div class="ts-card"><h3>The buyer</h3><p>Cannot prove the box was opened in transit, and waits on a claims process to get a refund.</p></div>
+                    <div class="ts-card"><h3>The seller</h3><p>Cannot prove they shipped the right item, or that the courier did not swap it.</p></div>
+                    <div class="ts-card"><h3>The courier</h3><p>Cannot prove they never touched it, so honest couriers are blamed by default.</p></div>
+                </div>
+                <div class="ts-grid" style="margin-top:3rem !important">
+                    <div class="ts-stat"><b>15.14%</b><span>of 2024 US returns were fraudulent, $103B in fraudulent returns and claims.</span><a href="https://apprissretail.com/news/appriss-retail-annual-research-fraudulent-returns-and-claims-cost-retailers-103b-in-2024/" target="_blank" rel="noreferrer">Appriss Retail</a></div>
+                    <div class="ts-stat"><b>3,625</b><span>US cargo thefts recorded in 2024, up 27%, averaging $202,364 each.</span><a href="https://www.cargonet.com/news-and-events/cargonet-in-the-media/2024-theft-trends/" target="_blank" rel="noreferrer">CargoNet</a></div>
+                    <div class="ts-stat"><b>60 to 65%</b><span>of Indian e-commerce orders are cash on delivery, and 25 to 30% of those end as return-to-origin.</span><a href="https://razorpay.com/blog/cash-on-delivery/" target="_blank" rel="noreferrer">Razorpay (blog source)</a></div>
+                </div>
+                <p class="ts-note">Tamper tape leaves a photo, GPS trackers show where but not whether it was opened, and platform refunds put the decision with an interested party. TamperSafe makes detection, evidence and settlement one system.</p>
+            </div>
+        </section>
+
+        <section class="ts-story" id="why-mst">
+            <div class="ts-wrap">
+                <p class="ts-eyebrow">Why blockchain, and why MST</p>
+                <h2>The referee cannot be one of the parties.</h2>
+                <p class="ts-lede">A database run by the platform can be edited by the platform. An on-chain state machine and an anchored log cannot be changed silently, so the money and the record live on MST Testnet.</p>
+                <div class="ts-grid two">
+                    <div class="ts-card"><h3>Neutral custody</h3><p>TamperSafeEscrow holds the buyer's payment and the courier's bond. No party controls it.</p></div>
+                    <div class="ts-card"><h3>Rules fixed in advance</h3><p>The relayer can only trigger defined transitions and never chooses a payee, so even a compromised relayer cannot send funds to itself.</p></div>
+                    <div class="ts-card"><h3>A public audit anchor</h3><p>Each box's hash-chained log head is anchored on-chain, so the anchored point cannot be quietly rewritten.</p></div>
+                    <div class="ts-card"><h3>Slashing without discretion</h3><p>On a tamper the buyer is refunded and the courier's bond is slashed to the seller by rule, not by a support agent.</p></div>
+                </div>
+                <table class="ts-contracts">
+                    <thead><tr><th>Contract</th><th>MST Testnet address</th><th>Role</th></tr></thead>
+                    <tbody>
+                        <tr><td>TamperSafeEscrow</td><td class="mono"><a class="ts-link" href="https://testnet.mstscan.com/address/0xC876A0F58592BE567081a752a0Ad53106EFD1223" target="_blank" rel="noreferrer">0xC876A0F58592BE567081a752a0Ad53106EFD1223</a></td><td>Holds funds, runs the order state machine</td></tr>
+                        <tr><td>BoxRegistry</td><td class="mono"><a class="ts-link" href="https://testnet.mstscan.com/address/0x45fCCe56c139b28655A3b7083f98e41C6c36E04d" target="_blank" rel="noreferrer">0x45fCCe56c139b28655A3b7083f98e41C6c36E04d</a></td><td>Registers boxes, binds one active order each</td></tr>
+                        <tr><td>TelemetryAnchor</td><td class="mono"><a class="ts-link" href="https://testnet.mstscan.com/address/0x6D7Ea16170Bd03685Efad614526d9C38849C9a86" target="_blank" rel="noreferrer">0x6D7Ea16170Bd03685Efad614526d9C38849C9a86</a></td><td>Anchors log heads, records evidence alerts</td></tr>
+                    </tbody>
+                </table>
+                <p class="ts-note">Wallet: the dashboard prefers <a class="ts-link" href="https://bridgekey.io" target="_blank" rel="noreferrer">BridgeKey</a>, the official MST wallet, for connect, network switching and signing. Settlement transaction hashes are published in the <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe#contract-addresses-mst-testnet" target="_blank" rel="noreferrer">README</a> once the first end-to-end order has run on testnet.</p>
+            </div>
+        </section>
+
+        <section class="ts-story" id="forms">
+            <div class="ts-wrap">
+                <p class="ts-eyebrow">One protocol, many forms</p>
+                <h2>The box is a demonstration, not the limit.</h2>
+                <p class="ts-lede">Sense, latch, report, settle. The escrow, relayer, evidence log and dashboard do not care what the container is. Only the sensing and latching layer changes.</p>
+                <div class="ts-grid">
+                    <div class="ts-card"><span class="ts-chip on">Built</span><h3 style="margin-top:.9rem !important">Parcel box</h3><p>IR lid sensor, shock and tilt, reboot counts as tamper, RFID package check, servo latch.</p></div>
+                    <div class="ts-card"><span class="ts-chip">Roadmap</span><h3 style="margin-top:.9rem !important">Containers and truck bays</h3><p>Door-open contacts, bolt-seal integrity, cargo-area motion and cellular connectivity.</p></div>
+                    <div class="ts-card"><span class="ts-chip">Roadmap</span><h3 style="margin-top:.9rem !important">Pallets and crates</h3><p>Strap tension, tilt and shock, with the same settlement layer behind them.</p></div>
+                </div>
+                <p class="ts-note">Each new form still needs its own sensors, mounting, power and connectivity. Only the parcel box exists today.</p>
+            </div>
+        </section>
+
+        <section class="ts-story" id="limits">
+            <div class="ts-wrap">
+                <p class="ts-eyebrow">What it does not prove</p>
+                <h2>Honest limits.</h2>
+                <ul class="ts-list" style="margin-top:2rem !important;max-width:70ch">
+                    <li>The depot seal is the trust point: a wrong item packed at origin still passes as clean.</li>
+                    <li>The relayer is a trusted oracle. It cannot name a payee, but it could falsely report a tamper. Device-signed events verified on-chain are the fix.</li>
+                    <li>Verify log currently compares the relayer's stored log head with the on-chain anchor; an independent recompute is still to come.</li>
+                    <li>Temperature, contents and weight sensing are not built.</li>
+                </ul>
+                <p class="ts-note">The full status table, trust model and business model are in <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe/blob/main/pitch.md" target="_blank" rel="noreferrer">pitch.md</a>. Built for the MST Blockchain x NEWRRO Buildathon; AI usage is described in the <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe#ai-usage" target="_blank" rel="noreferrer">README</a>.</p>
+            </div>
+        </section>
         <section class="home-stack">
             <div class="divider-comp absolute-top-100">
                 <div class="w-layout-hflex divider-wrapper">
@@ -1492,7 +1596,7 @@
         <div class="padding-global">
             <div class="w-layout-blockcontainer container-1440 w-container">
                 <div class="w-layout-grid footer-grid">
-                    <div class="footer_logo-ilust"><svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 88 59" fill="none" class="object-contain"><path d="M87.1494 32.2275C87.1494 46.7373 75.3867 58.4998 60.877 58.5H0V32.2275H87.1494ZM60.877 0C75.3867 0.000198623 87.1493 11.7627 87.1494 26.2725H0V0H60.877Z" fill="white"></path></svg></div>
+                    <div class="footer_logo-ilust"><svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="object-contain" role="img" aria-label="TamperSafe"><rect x="2" y="5" width="20" height="15" rx="3" stroke="#fff" stroke-width="1.6"/><path d="M7 5V4C7 2.34315 8.34315 1 10 1H14C15.6569 1 17 2.34315 17 4V5" stroke="#fff" stroke-width="1.6"/><circle cx="12" cy="12.5" r="2" fill="#fff"/><path d="M12 14.5V17" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg></div>
                     <div
                         class="w-layout-grid footer_links-grid">
                         <div class="w-layout-vflex gap-16 hdn"><span class="footer_links-heading">Architecture</span>

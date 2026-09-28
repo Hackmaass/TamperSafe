@@ -20,7 +20,7 @@ function initGridsReveal(e) {
             y: 0,
             duration: .4,
             stagger: .1,
-            ease: "DeepBook",
+            ease: "TamperSafeEase",
             scrollTrigger: {
                 trigger: e,
                 start: "top bottom-=20%",
@@ -54,14 +54,14 @@ function initTextStagger(e) {
             y: "-100%",
             stagger: o ? .02 : .01,
             duration: .2,
-            ease: o ? "DeepBook" : "expo.out"
+            ease: o ? "TamperSafeEase" : "expo.out"
         })
     }, e._mouseLeaveHandler = () => {
         gsap.to(i, {
             y: "0%",
             stagger: o ? .02 : .01,
             duration: .2,
-            ease: o ? "DeepBook" : "expo.out"
+            ease: o ? "TamperSafeEase" : "expo.out"
         })
     }, e.addEventListener("mouseenter", e._mouseEnterHandler), e.addEventListener("mouseleave", e._mouseLeaveHandler)
 }
@@ -534,8 +534,8 @@ lenis.on("scroll", ScrollTrigger.update), gsap.ticker.add((e => {
     lenis.raf(1e3 * e)
 })), gsap.ticker.lagSmoothing(0), ScrollTrigger.config({
     ignoreMobileResize: !0
-}), CustomEase.create("DeepBook", "M0,0 C0.65,0 0.35,1 1,1"), gsap.defaults({
-    ease: "DeepBook"
+}), CustomEase.create("TamperSafeEase", "M0,0 C0.65,0 0.35,1 1,1"), gsap.defaults({
+    ease: "TamperSafeEase"
 });
 const GLOBAL_HANDLERS = {
         textStagger: initTextStagger,
