@@ -2,7 +2,7 @@
 
 > A tamper-evident container that locks itself at origin, watches itself in transit, and settles the payment on-chain by rules fixed before dispatch. A clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond. The box in our demo is one form of it; the product is the protocol behind it (§4).
 
-This document is deliberately blunt. It says what the product does, what it does not do, who would pay, and where it is weakest. Claims about the box match what is in the repo (see §4). Numbers carry a link or are marked `[source needed]`.
+This document is deliberately blunt. It says what the product does, what it does not do, who would pay, and where it is weakest. Claims about the box match what is in the repo (see §5). Numbers carry a link or are marked `[source needed]`.
 
 ---
 
@@ -80,26 +80,27 @@ None of the four steps depends on the container being a parcel box. The contract
 
 ## 5. What is built today, and what is not
 
-Read this before believing any use case in §5.
+Read this before believing any use case in §6.
 
 | Capability | Status |
 | :--- | :--- |
-| Escrow, courier bond, refund and bond slash, expiry | Built and tested (68 contract tests) |
+| Escrow, courier bond, refund and bond slash, expiry | Built and tested (68 contract tests), on a **local chain**. **Not yet deployed to MST testnet**, so there are no explorer links yet |
 | Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
-| Hash-chained log anchored on-chain, **Verify log** | Built. Checked end to end: recomputed head matches the on-chain head |
-| Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data. Wallet flows still need one click-through |
+| Hash-chained log with the head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard button compares the relayer's stored head at the anchored sequence with the on-chain head, and it matches. It does **not** rebuild the head from the raw events, so it trusts the relayer's copy. An independent recompute (browser-side) is roadmap |
+| Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data. The wallet flows still need a click-through |
 | Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware. Firmware wired to it |
-| NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Built in firmware, compiles. Full on-box scenarios still to run |
-| IR lid sensor | Pin confirmed. The tamper rule in the main firmware is still to land |
-| RFID package binding (RC522) | Reader verified on the board: reads a tag UID and detects presence and removal. Main-firmware integration in progress. It is **alert-only** (`PACKAGE_MISMATCH`): it never triggers a refund |
-| GPS | Evidence only. Reports `NO_FIX` indoors. Driver integration in progress |
+| NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and compiles. The full on-box scenarios have not run |
+| Box to relayer over Wi-Fi | Firmware written. **Never run on hardware yet**: no Wi-Fi credentials are set |
+| IR lid sensor | Reads on the bench. The tamper rule in the main firmware is not written yet. Its pin (GPIO15) currently clashes with the RFID reader's reset line |
+| RFID package binding (RC522) | Reader verified on the board: reads a tag UID and detects presence and removal. **Not yet integrated** into the main firmware. It will be **alert-only** (`PACKAGE_MISMATCH`) and never triggers a refund |
+| GPS | **Not yet integrated**: the driver is still a stub. It will be evidence only and report `NO_FIX` indoors |
 | Runs without hardware (sim-box) and without testnet (`CHAIN=local`) | Built. This is the fallback if the box misbehaves on stage |
 
 **Not built. Do not claim:**
 
 - Temperature or cold chain. There is no sensor and no field for it.
 - Contents or weight detection. The ultrasonic sensor was dropped, and `CONTENTS_DISTURBED` is a legacy code.
-- On-chain device signatures. `deviceKey` is unset today. The relayer is a trusted oracle (§8).
+- On-chain device signatures. `deviceKey` is unset today. The relayer is a trusted oracle (§9).
 - Cellular connectivity. The demo box uses Wi-Fi only.
 - A production bill of materials. The Neurick board is an organiser-supplied dev kit.
 
@@ -112,7 +113,7 @@ Ranked by how well the current box fits, not by market size. Each one names what
 **1. High-value e-commerce (electronics, luxury, collectibles).**
 - *Pain:* "box arrived empty" and box-swap claims on a few expensive items, where one claim costs more than the box.
 - *Fit:* lid tamper, reboot-as-tamper, shock, and a hash-chained evidence trail that ends the argument. The bond gives the courier a reason to behave.
-- *Gap:* the depot seal is the trust point (§8). A weight or photo check at seal would close it.
+- *Gap:* the depot seal is the trust point (§9). A weight or photo check at seal would close it.
 
 **2. COD-heavy and peer-to-peer marketplace trust (India and similar).**
 - *Pain:* buyers will not prepay a stranger, sellers eat failed COD deliveries.
@@ -171,18 +172,18 @@ The question MST judges will ask.
 **What the chain adds**
 - **Neutral custody of the money.** The escrow is a contract no party controls. Not the platform, not the seller, not the courier.
 - **Rules fixed in advance.** The relayer can trigger only defined transitions and never chooses a payee. Even a compromised relayer cannot send funds to itself.
-- **A public audit anchor.** The device log head is anchored on-chain. A history that has been anchored cannot be rewritten without the mismatch showing in Verify log.
+- **A public audit anchor.** The device log head is anchored on-chain, so the anchored point cannot be quietly changed. Anyone holding the raw log can recompute the chain and compare it with the anchor. Today the dashboard's Verify log compares the relayer's own stored head, so the independent recompute is roadmap.
 - **Bond slashing without discretion.** The courier's bond moves by rule, not because a support agent decided.
 
 **"Why not a database?"** A database works if everyone trusts whoever runs it. Our whole problem is that the platform is one of the interested parties. A database can be edited by its operator after the fact. An on-chain state machine and an anchored log cannot be, at least not silently.
 
-**What the chain does not fix.** It does not make the sensor honest. The chain only guarantees that once the box says something, the consequence is automatic and the record is fixed. Trust in the box is a separate problem (§8).
+**What the chain does not fix.** It does not make the sensor honest. The chain only guarantees that once the box says something, the consequence is automatic and the record is fixed. Trust in the box is a separate problem (§9).
 
 ## 9. Trust and threat model
 
 What this proves, and what it does not.
 
-**It proves:** a sealed box's lid was opened, it lost power, or it was shaken hard, and the record of that cannot be quietly altered afterwards.
+**It aims to prove:** a sealed box's lid was opened, it lost power, or it was shaken hard, and that the anchored record of it cannot be quietly altered afterwards. Once the IR rule and on-box scenarios land, this is what the demo shows. It is not fully demonstrated on hardware yet (§5).
 
 **It does not prove:**
 
@@ -199,9 +200,9 @@ What this proves, and what it does not.
 
 | Objection | Answer |
 | :--- | :--- |
-| "A box for every parcel is absurd." | Agreed. This is for high-value goods and dedicated lanes, not the general parcel flow (§5, §6). |
+| "A box for every parcel is absurd." | Agreed. This is for high-value goods and dedicated lanes, not the general parcel flow (§6, §7). |
 | "What if the goods were wrong before sealing?" | Then we do not catch it today. It is the largest gap, and the fix is a weight or photo check at seal. |
-| "Cost per shipment?" | We cannot source it and will not invent it. §6 shows the formula. A pilot is how we find the number. |
+| "Cost per shipment?" | We cannot source it and will not invent it. §7 shows the formula. A pilot is how we find the number. |
 | "GPS does not work indoors." | Correct, so escrow never depends on it. GPS is evidence, shown as `NO_FIX` when there is none. |
 | "Battery and range?" | The demo runs on a 12 V pack and Wi-Fi. A production box needs low-power design and cellular. Not built. |
 | "Why would couriers accept a bond?" | Honest couriers gain: they are no longer blamed by default, and a clean record is proven. Adoption depends on incentives such as better rates or priority lanes. Untested. |
@@ -216,7 +217,7 @@ What this proves, and what it does not.
 3. **Measure three things:** disputes per hundred shipments with and without the box, cost per shipment including the return leg, and how many disputes the evidence record resolved without escalation.
 4. **Decide from the numbers.** If `value < cost`, narrow to a higher-value tier. If it works, add LTE-M and device signatures before scaling.
 
-**Build order after the buildathon:** device-signed events, courier-signed seal, weight or photo at seal, cellular, secure element. In that order, because the first two remove the two largest trust gaps in §8.
+**Build order after the buildathon:** device-signed events, courier-signed seal, weight or photo at seal, cellular, secure element. In that order, because the first two remove the two largest trust gaps in §9.
 
 ## 12. See it
 
@@ -227,7 +228,9 @@ What this proves, and what it does not.
 
 ### Sources
 
-- [NRF / Appriss Retail, 2024 claims and appeasements report](https://nrf.com/research/appriss-retail-2024-claims-and-appeasements-report) and [Appriss summary](https://apprissretail.com/news/appriss-retail-annual-research-fraudulent-returns-and-claims-cost-retailers-103b-in-2024/)
-- [Verisk CargoNet, 2024 cargo theft](https://www.verisk.com/company/newsroom/cargo-theft-surges-to-record-levels-in-2024-verisk-cargonet-analysis-reveals/)
-- [Security.org, package theft report](https://www.security.org/package-theft/annual-report/)
-- India COD and RTO (secondary, `[primary source needed]`): [Razorpay](https://razorpay.com/blog/cash-on-delivery/), [Qikink](https://qikink.com/blog/what-is-return-to-origin-how-it-affects-online-businesses/)
+Each figure above was checked against the linked page.
+
+- [Appriss Retail annual research, 2024](https://apprissretail.com/news/appriss-retail-annual-research-fraudulent-returns-and-claims-cost-retailers-103b-in-2024/): 15.14%, $103B, $685B
+- [CargoNet, 2024 theft trends](https://www.cargonet.com/news-and-events/cargonet-in-the-media/2024-theft-trends/): 3,625 incidents, +27%, $202,364 average
+- [Security.org, package theft report](https://www.security.org/package-theft/annual-report/): one in four Americans, lifetime
+- India COD and RTO (blog sources, `[primary source needed]`): [Razorpay](https://razorpay.com/blog/cash-on-delivery/) (60 to 65% COD, citing ET Prime Research; COD RTO 25 to 30%; prepaid 2 to 3%), [Qikink](https://qikink.com/blog/what-is-return-to-origin-how-it-affects-online-businesses/) (about 26% COD, under 2% prepaid)

@@ -139,7 +139,7 @@ export function EvidenceTab({ network, relayer }: { network: NetworkConfig; rela
         ))}
       </div>
 
-      <Panel title="Device log check" right={<span className="tag-off">off-chain log vs on-chain anchor</span>}>
+      <Panel title="Device log check" right={<span className="tag-off">relayer log head vs on-chain anchor</span>}>
         <div className="verify">
           <button className="btn" onClick={() => void verify()} disabled={verifying}>
             {verifying ? "Verifying…" : "Verify log"}
@@ -153,7 +153,7 @@ export function EvidenceTab({ network, relayer }: { network: NetworkConfig; rela
                 <div className="hash">
                   seq {log.anchored_seq}
                   <br />
-                  recomputed {log.computed_head_at_anchored_seq ?? "not in log"}
+                  relayer log  {log.computed_head_at_anchored_seq ?? "not in log"}
                   <br />
                   on-chain&nbsp;&nbsp;&nbsp;{log.anchored_head}
                 </div>
