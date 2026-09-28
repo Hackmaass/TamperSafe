@@ -1,22 +1,121 @@
 # TamperSafe
 
-A tamper-evident delivery box with on-chain escrow, built for the MST Blockchain x NEWRRO 24-Hour Buildathon.
+**A tamper-evident container that locks itself at origin, watches itself in transit, and settles the payment on-chain by rules fixed before dispatch.**
 
-The buyer's payment sits in an escrow contract on **MST Testnet** from dispatch to doorstep. The box locks itself at the depot, watches its lid, motion, location and package identity in transit, and reports to a relayer that writes state changes to chain. A clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond to the seller. The problem, use cases and honest limits are in [`pitch.md`](pitch.md).
+A clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond to the seller. Built on **MST Blockchain** for the MST Blockchain x NEWRRO 24-Hour Buildathon.
 
-## How MST Blockchain is used
+| | |
+| :--- | :--- |
+| Chain | MST Testnet (chain id 91562037), explorer [testnet.mstscan.com](https://testnet.mstscan.com) |
+| Escrow contract | [`0xC876A0F58592BE567081a752a0Ad53106EFD1223`](https://testnet.mstscan.com/address/0xC876A0F58592BE567081a752a0Ad53106EFD1223) |
+| Wallet | [BridgeKey](https://bridgekey.io), the official MST wallet (preferred), or any EIP-1193 wallet |
+| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, GPS, RC522 RFID and a servo latch |
+| More | [`pitch.md`](pitch.md) (problem, use cases, business model, limits) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/HARDWARE.md`](docs/HARDWARE.md) |
 
-MST is the settlement and evidence layer, not a bolt-on. Without it there is nobody neutral to hold the money or the record.
+---
 
-- **`TamperSafeEscrow`** holds the buyer's payment and the courier's bond and moves them through a fixed state machine (Funded, InTransit, UnlockRequested, Delivered, Tampered, Expired, Cancelled). The relayer holds `ORACLE_ROLE` and can only trigger defined transitions; it never names a payee. The buyer's own wallet signs create, cancel and unlock.
-- **`BoxRegistry`** registers each physical box and binds it to at most one active order.
-- **`TelemetryAnchor`** stores the head of each box's hash-chained event log on-chain and logs evidence-only alerts.
-- Every state change the dashboard shows is a contract event with an explorer link. Raw telemetry stays off-chain and is hash-chained, with the log head anchored on-chain.
-- **Wallet: BridgeKey.** The dashboard discovers wallets through EIP-6963 and prefers [BridgeKey](https://bridgekey.io), the official MST wallet, for connect, network switching and signing. It falls back to any other injected EIP-1193 wallet, and shows an install prompt if none is found. BridgeKey publishes no dApp-integration docs, so this uses the standard discovery mechanism rather than a vendor-specific object.
+## Contents
 
-## Contract addresses (MST Testnet, chain id 91562037)
+1. [The problem](#the-problem)
+2. [The solution](#the-solution)
+3. [Why blockchain, and why MST](#why-blockchain-and-why-mst)
+4. [What is built today](#what-is-built-today)
+5. [Architecture](#architecture)
+6. [Contract addresses](#contract-addresses-mst-testnet)
+7. [Getting started](#getting-started)
+8. [Use cases and business model](#use-cases-and-business-model)
+9. [Trust model and limits](#trust-model-and-limits)
+10. [Repository layout](#repository-layout)
+11. [Open-source libraries and AI usage](#open-source-libraries)
 
-Read from `deployments/mst-testnet.json`; the relayer and dashboard load addresses and ABIs only from `deployments/`.
+---
+
+## The problem
+
+Every delivery is a three-party deal in which nobody can verify anybody. The buyer cannot prove the box was opened in transit. The seller cannot prove they shipped the right thing or that the courier did not swap it. The courier cannot prove they never touched it, and holds the goods with **nothing at stake**.
+
+When something goes wrong, the dispute is one party's word against another's, decided by whoever runs the platform. Honest parties lose slowly, and dishonest ones win cheaply. Refunds decided on unverifiable claims are expensive: Appriss Retail reports that 15.14% of 2024 US returns were fraudulent, $103B in fraudulent returns and claims on $685B of total returns ([source](https://apprissretail.com/news/appriss-retail-annual-research-fraudulent-returns-and-claims-cost-retailers-103b-in-2024/)). Theft in transit is real too: CargoNet recorded 3,625 US cargo thefts in 2024, up 27%, averaging $202,364 each ([source](https://www.cargonet.com/news-and-events/cargonet-in-the-media/2024-theft-trends/)). In India, 60 to 65% of e-commerce orders are cash on delivery and roughly 25 to 30% of those end as return-to-origin, against 2 to 3% of prepaid orders ([blog source](https://razorpay.com/blog/cash-on-delivery/), primary source still needed).
+
+Today's fixes each cover one piece. Tamper tape shows a seal broke, but the evidence is a photo. GPS trackers show where, not whether it was opened. Platform refunds put the decision with an interested party. Insurance needs proof of loss, which is exactly what is missing.
+
+> There is no neutral, evidence-backed way to decide who is at fault when a sealed package arrives wrong, and no consequence for the party who caused it.
+
+## The solution
+
+TamperSafe makes **detection, evidence and settlement one system**. The box that detects a tamper is the same one whose report moves the money, under rules nobody can change after dispatch.
+
+1. **Seal.** At the depot the servo latch locks the box. The buyer's payment is already in escrow and the courier's bond is locked against the shipment.
+2. **Transit.** The box watches its lid (IR), motion and shock (MPU6050), location (GPS) and package identity (RFID tag). A tamper is latched in the box's non-volatile memory, and a reboot or power loss mid-transit counts as tamper.
+3. **Report.** The box reports over Wi-Fi to a relayer. Every event is hash-chained and authenticated with a per-box secret. The relayer writes state changes to chain and anchors the log head.
+4. **Settle.** The buyer confirms at the doorstep and the box unlocks. Clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond.
+
+**Invariants the design holds to:**
+
+- Funds move only through the escrow state machine. The relayer triggers defined transitions and **never names a payee**.
+- The buyer's own wallet signs create, cancel and unlock.
+- Tamper is latched in both the firmware and the contract.
+- GPS is evidence only and never gates escrow. Simulated GPS is always labelled `SIMULATED`.
+- Every state change the dashboard shows is an on-chain event with an explorer link.
+- The whole flow runs without hardware (the relayer's sim-box) and without testnet (`CHAIN=local`).
+
+**The box is one form, not the whole product.** The settlement and evidence layer is form-agnostic: the same loop of sense, latch, report and settle applies to containers, truck cargo bays and pallets. Only the sensing and latching layer changes per form, and only the parcel box exists today. See [`pitch.md`](pitch.md) section 4.
+
+## Why blockchain, and why MST
+
+MST is the settlement and evidence layer, not a bolt-on. The whole problem is that the platform is one of the interested parties, so a database run by that platform cannot be the referee.
+
+- **Neutral custody of the money.** `TamperSafeEscrow` holds the payment and the bond. No party controls it.
+- **Rules fixed in advance.** The oracle can only call defined transitions, so even a compromised relayer cannot send funds to itself.
+- **A public audit anchor.** `TelemetryAnchor` stores each box's log head on-chain, so the anchored point cannot be quietly changed.
+- **Bond slashing without discretion.** The courier's bond moves by rule, not because a support agent decided.
+
+What the chain does **not** fix: it does not make the sensor honest. It guarantees that once the box reports something, the consequence is automatic and the record is fixed. Trust in the box is a separate problem, covered under [Trust model and limits](#trust-model-and-limits).
+
+**BridgeKey.** The dashboard discovers wallets through EIP-6963 and prefers BridgeKey for connect, network switching and signing. It falls back to any other injected EIP-1193 wallet and shows an install prompt if none is found. BridgeKey publishes no dApp-integration docs, so this uses the standard discovery mechanism rather than a vendor-specific object.
+
+## What is built today
+
+| Capability | Status |
+| :--- | :--- |
+| Escrow, courier bond, refund and bond slash, expiry | Built and tested (68 contract tests). **Deployed to MST Testnet** |
+| Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
+| Hash-chained log with head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard compares the relayer's stored head at the anchored sequence with the on-chain head. It does not rebuild the head from raw events, so it trusts the relayer's copy. An independent recompute is roadmap |
+| Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data, with BridgeKey-first wallet discovery |
+| Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware |
+| NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and running on the board. Full on-box scenarios with the relayer over Wi-Fi are still being run |
+| IR lid tamper rule, RFID package binding (alert-only `PACKAGE_MISMATCH`), GPS | Drivers written and flashed. The RC522 reads a tag and detects removal on the bench. GPS reports no data yet |
+| An end-to-end order on MST Testnet | **Not yet run.** The transaction hashes will be listed below once it is |
+
+**Not built, and not claimed:** temperature or cold chain, contents or weight detection, on-chain device signatures, cellular connectivity, a production bill of materials.
+
+## Architecture
+
+```
+┌─────────────── TamperSafe box ───────────────┐
+│ IR lid   MPU6050 shock/tilt   GPS   RC522 RFID│
+│ Servo latch   OLED                           │
+│ ESP32-S3: state machine, NVS tamper latch,   │
+│ hash chain, ring buffer                      │
+└───────────────┬──────────────────────────────┘
+                │ POST /api/device/events  (JSON + HMAC, every 2 s)
+                │ ◀── response carries the pending command (SEAL / UNLOCK / RESET)
+┌───────────────▼──────────────────────────┐        ┌──────── dashboard (React) ────────┐
+│ relayer (Node + ethers v6)               │──SSE──▶│ Track · Buyer · Courier · Depot · │
+│ ingest → verify → log → rules            │◀─REST──│ Evidence                          │
+│ chain writer (ORACLE key)                │        └──────┬───────────────▲────────────┘
+│ chain listener (UnlockRequested)         │               │ buyer/courier │ reads events
+└───────────────┬──────────────────────────┘               │ txs (wallet)  │
+                │ ORACLE txs                               ▼               │
+┌───────────────▼─────────────────────────────────────────────────────────┴──┐
+│ MST Testnet: BoxRegistry · TamperSafeEscrow (holds funds) · TelemetryAnchor │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Order lifecycle: `Funded → InTransit → UnlockRequested → Delivered`, or `Tampered`, `Expired`, `Cancelled`. Full contract spec, state machines, wire formats and the hash-chain format are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Contract addresses (MST Testnet)
+
+Chain id 91562037. Read from `deployments/mst-testnet.json`; the relayer and dashboard load addresses and ABIs only from `deployments/`.
 
 | Contract | Address | Deployment |
 | :--- | :--- | :--- |
@@ -26,7 +125,68 @@ Read from `deployments/mst-testnet.json`; the relayer and dashboard load address
 
 Relayer oracle (holds `ORACLE_ROLE`): [`0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a`](https://testnet.mstscan.com/address/0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a)
 
-**Transaction hashes for the settlement flow (create, seal, tamper or delivery, anchor):** to be listed here after the end-to-end run on testnet. Only real, explorer-resolvable hashes go in this table.
+**Settlement-flow transactions (create, seal, tamper or delivery, anchor):** to be listed here after the end-to-end run on testnet. Only real, explorer-resolvable hashes go in this section.
+
+## Getting started
+
+Requires Node 22. Run each block from the repo root.
+
+**Contracts** (compile and test)
+```bash
+cd contracts && npm install && npm test
+```
+
+**The whole flow with no hardware and no testnet** (local chain plus the relayer's simulated box)
+```bash
+cd relayer && npm install
+npm run sim -- happy          # also: tamper | power-cycle | offline-gap
+```
+
+**Dashboard against a populated local stack**
+```bash
+cd relayer && ORCHESTRATOR_KEEP_ALIVE=1 npm run sim -- tamper     # leaves the node + relayer up on :4100
+cd dashboard && npm install && RELAYER_URL=http://127.0.0.1:4100 npm run dev
+```
+
+**Dashboard and relayer on MST Testnet**
+1. Create `relayer/.env` from `relayer/.env.example` with `CHAIN=mst`, your own `ORACLE_PRIVATE_KEY` (the account that holds `ORACLE_ROLE`), `BOX_SECRETS` and `PORT=4000`. The file is gitignored; never commit a key.
+2. `cd relayer && npm start`
+3. `cd dashboard && npm run dev`, open http://localhost:5173, choose **MST**, and connect BridgeKey. The dashboard starts on whichever chain the relayer reports.
+4. Get tMSTC from the [MST faucet](https://faucet.masterstroke.academy). The buyer and courier accounts each need some, and the courier's bond must be at least the order amount.
+
+**Firmware** (Arduino IDE: ESP32S3 Dev Module, Flash 16MB, PSRAM OPI, USB CDC On Boot enabled, 115200 baud)
+1. Install the `Newrick` library (organiser-provided, copy in `docs/neurick/`), Adafruit SSD1306 + GFX, ArduinoJson, MFRC522 and TinyGPSPlus.
+2. Copy `firmware/tampersafe_box/secrets.example.h` to `secrets.h` and fill in the hotspot, the relayer URL and the box secret (the same value as in `relayer/.env`).
+3. Flash `firmware/tampersafe_box`. The 12 V battery must be on for the servo. Wiring and thresholds are in [`docs/HARDWARE.md`](docs/HARDWARE.md).
+
+The demo script, cut-lines and fallback drill are in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+
+## Use cases and business model
+
+Ranked by how well the current box fits, not by market size. Each is analysed in [`pitch.md`](pitch.md) with the sensor that supports it and the gap that is missing.
+
+**Beachhead**
+- **High-value e-commerce** (electronics, luxury, collectibles): "box arrived empty" and box-swap claims where one claim costs more than the box.
+- **COD-heavy and peer-to-peer marketplaces**: the buyer's money is in escrow before dispatch, so it is prepaid with protection instead of cash on delivery.
+
+**Adjacent, each needing one more capability:** legal and evidence chain of custody, B2B critical spares, sensitive documents, and lab samples (which would need temperature logging, not built).
+
+**Where we would not pitch it:** low-value parcels, perishables, and anything where the tamper that matters happens before the seal.
+
+**Who pays and for what.** Box-as-a-service per shipment or rental, an escrow fee in basis points on high-value orders, a logistics dashboard for couriers and depots, and a dispute-evidence API for marketplaces and insurers. Pricing is unvalidated and stated nowhere because it cannot be sourced. The economics turn on `value per shipment (avoided fraud and dispute cost) > cost per shipment (box amortised over its trips + reverse logistics + connectivity)`. **Reverse logistics is the honest weak spot:** a reusable box has to come back, so the first pilot is a closed lane where boxes return on the same loop.
+
+## Trust model and limits
+
+What this aims to prove: a sealed box's lid was opened, it lost power, or it was shaken hard, and the anchored record of that cannot be quietly altered afterwards. What it does not prove:
+
+| Gap | Why it matters | Mitigation and roadmap |
+| :--- | :--- | :--- |
+| **The depot seal is the trust point** | A wrong item packed at origin still passes as clean | Weight or photo capture at seal, recorded in the seal transaction |
+| **The relayer is a trusted oracle** | It could falsely report tamper | Per-box HMAC, hash-chained log, anchored heads, defined transitions only, no payee choice. Roadmap: device-signed events checked on-chain (`ecrecover` against `BoxRegistry.deviceKey`) |
+| **The courier never signs the seal** | The oracle picks whose bond is locked | Courier `acceptShipment` from the courier's wallet |
+| **The box secret lives in ESP32 flash** | A skilled attacker with the box could extract it | Secure element (ATECC608) |
+| **Physical attacks and jamming** | Any hardware can be defeated with enough effort | Reboot-is-tamper, `SIGNAL_LOST` and `LOG_GAP` alerts. The goal is to make it expensive and evident |
+| **Connectivity is a hotspot in the demo** | Silent periods are gaps | Ring buffer and retry. Roadmap: LTE-M or NB-IoT |
 
 ## Repository layout
 
@@ -39,46 +199,7 @@ Relayer oracle (holds `ORACLE_ROLE`): [`0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD
 | `landing-page/` | Static project page |
 | `deployments/` | Addresses, tx hashes and ABIs per chain. The only place contract info is read from |
 | `docs/` | Architecture, hardware, implementation plan |
-
-## Setup and run
-
-Requires Node 22. Run each block from the repo root.
-
-**Contracts** (compile and test)
-```
-cd contracts && npm install && npm test
-```
-
-**Run the whole flow with no hardware and no testnet** (local chain plus the relayer's simulated box)
-```
-cd relayer && npm install
-npm run sim -- happy          # also: tamper | power-cycle | offline-gap
-```
-
-**Dashboard against a populated local stack**
-```
-cd relayer && ORCHESTRATOR_KEEP_ALIVE=1 npm run sim -- tamper     # leaves the node + relayer up on :4100
-cd dashboard && npm install && RELAYER_URL=http://127.0.0.1:4100 npm run dev
-```
-
-**Dashboard and relayer on MST Testnet**
-1. Create `relayer/.env` from `relayer/.env.example` with `CHAIN=mst`, your own `ORACLE_PRIVATE_KEY` (the oracle account that holds `ORACLE_ROLE`), `BOX_SECRETS` and `PORT=4000`. This file is gitignored; never commit a key.
-2. `cd relayer && npm start`
-3. `cd dashboard && npm run dev`, open http://localhost:5173, choose **MST**, and connect BridgeKey. The dashboard starts on whichever chain the relayer reports.
-4. Get tMSTC from the MST faucet (https://faucet.masterstroke.academy). The buyer and courier accounts each need some. The courier's bond must be at least the order amount.
-
-**Firmware** (Arduino IDE settings: ESP32S3 Dev Module, Flash 16MB, PSRAM OPI, USB CDC On Boot enabled, 115200 baud)
-1. Install the `Newrick` library (organiser-provided, copy in `docs/neurick/`), Adafruit SSD1306 + GFX, ArduinoJson, MFRC522, TinyGPSPlus.
-2. Copy `firmware/tampersafe_box/secrets.example.h` to `secrets.h` and fill in the hotspot, the relayer URL and the box secret (the same value as in `relayer/.env`).
-3. Flash `firmware/tampersafe_box`. The 12 V battery must be on for the servo. Wiring is in `docs/HARDWARE.md`.
-
-## Status
-
-See [`pitch.md`](pitch.md) section 5 for the capability-by-capability status. In short:
-
-- Working and tested: contracts, relayer, dashboard, and the full flow on a local chain with the simulated box.
-- Deployed: all three contracts on MST Testnet.
-- Firmware: drivers for the IR lid rule, RFID package watch and GPS are written and run on the board. The on-box scenarios with the relayer over Wi-Fi are still being run, so the physical box is not yet demonstrated end to end.
+| `pitch.md` | Problem, use cases, business model and limits, in full |
 
 ## Open-source libraries
 
@@ -88,10 +209,6 @@ See [`pitch.md`](pitch.md) section 5 for the capability-by-capability status. In
 - **Firmware:** `Newrick` (organiser-provided), Adafruit SSD1306 + GFX, MFRC522, TinyGPSPlus, ESP32 core (WiFi, HTTPClient, Preferences/NVS, mbedtls).
 - **Landing page:** vendored GSAP, Lenis, Lottie and Webflow runtime scripts (static assets).
 
-## AI usage note
+## AI usage
 
 This project uses Claude Code throughout the buildathon: for planning (`docs/`), for scaffolding and writing contracts, firmware, the relayer and the dashboard from the specs in `docs/ARCHITECTURE.md`, and for reviewing diffs against the invariants in `CLAUDE.md`. Every non-trivial block is explained to the team as it lands, and the team signs and runs anything that touches a real key (testnet deploys, the relayer, the faucet, the wallet). No code, contract or firmware was copied from another project.
-
-## Known limitations and production path
-
-See `docs/ARCHITECTURE.md` §3 (trust model) and `pitch.md` sections 5 and 9. The largest gaps: the relayer is a trusted oracle, the depot seal is the trust point, and Verify log compares the relayer's own stored head rather than recomputing it independently.
