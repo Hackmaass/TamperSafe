@@ -1,6 +1,6 @@
 # TamperSafe: the pitch
 
-> A delivery box that locks itself at the depot, watches itself in transit, and settles the payment on-chain. A clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond. No platform has to be believed.
+> A tamper-evident container that locks itself at origin, watches itself in transit, and settles the payment on-chain by rules fixed before dispatch. A clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond. The box in our demo is one form of it; the product is the protocol behind it (§4).
 
 This document is deliberately blunt. It says what the product does, what it does not do, who would pay, and where it is weakest. Claims about the box match what is in the repo (see §4). Numbers carry a link or are marked `[source needed]`.
 
@@ -19,10 +19,10 @@ Every delivery is a three-party deal in which nobody can verify anybody:
 The courier holds the goods and has **nothing at stake**. When something goes wrong, the dispute is one party's word against another's, and it is settled by whoever runs the platform. That has three consequences:
 
 1. **Honest parties lose slowly.** A buyer who got an empty box waits for a claims process. A courier who did nothing wrong is blamed by default.
-2. **Dishonest parties win cheaply.** "Item not received", "box was empty" and box-swapping cost the claimant almost nothing to try. Retailers report that 15.14% of 2024 US returns were fraudulent, about $103B in losses, on $685B of total returns ([NRF / Appriss Retail](https://nrf.com/research/appriss-retail-2024-claims-and-appeasements-report), [summary](https://apprissretail.com/news/appriss-retail-annual-research-fraudulent-returns-and-claims-cost-retailers-103b-in-2024/)). Those are returns, not transit tampering, but it is the same failure: refunds decided on unverifiable claims.
-3. **Trust is bought with prepayment, or not at all.** In India, cash on delivery is roughly 60 to 65% of e-commerce orders, and COD/non-prepaid orders return to origin at a far higher rate than prepaid ones (industry blogs citing GoKwik put overall RTO near 23%, COD around 26%, prepaid under 2%; these are secondary sources, [example](https://razorpay.com/blog/cash-on-delivery/) and [example](https://qikink.com/blog/what-is-return-to-origin-how-it-affects-online-businesses/), `[primary source needed]`). Sellers pay for that distrust in every failed COD delivery.
+2. **Dishonest parties win cheaply.** "Item not received", "box was empty" and box-swapping cost the claimant almost nothing to try. Appriss Retail reports that 15.14% of 2024 US returns were fraudulent, $103B in fraudulent returns and claims, on $685B of total returns ([Appriss Retail annual research](https://apprissretail.com/news/appriss-retail-annual-research-fraudulent-returns-and-claims-cost-retailers-103b-in-2024/)). Those are returns, not transit tampering, but it is the same failure: refunds decided on unverifiable claims.
+3. **Trust is bought with prepayment, or not at all.** In India, 60 to 65% of e-commerce orders are cash on delivery, and 25 to 30% of COD orders end as return-to-origin, against 2 to 3% of prepaid ones ([Razorpay](https://razorpay.com/blog/cash-on-delivery/); a second blog gives about 26% and under 2%, [Qikink](https://qikink.com/blog/what-is-return-to-origin-how-it-affects-online-businesses/)). These are blog figures, `[primary source needed]`. Sellers pay for that distrust on every failed COD delivery.
 
-Theft in transit is real too: [CargoNet/Verisk](https://www.verisk.com/company/newsroom/cargo-theft-surges-to-record-levels-in-2024-verisk-cargonet-analysis-reveals/) tracked 3,625 US cargo thefts in 2024 worth an estimated $454.9M, a record. Last-mile package theft is widely surveyed but has no single authoritative dataset (surveys range from about 25% to 45% of Americans depending on wording and period, [Security.org](https://www.security.org/package-theft/annual-report/)). We are not claiming a market size from these. They show the problem is not hypothetical.
+Theft in transit is real too. [CargoNet](https://www.cargonet.com/news-and-events/cargonet-in-the-media/2024-theft-trends/) recorded 3,625 US cargo theft incidents in 2024, up 27% on 2023, at an average of $202,364 per theft. Last-mile package theft has no single authoritative dataset; [Security.org](https://www.security.org/package-theft/annual-report/) reports that one in four Americans has had a package stolen at some point. We do not claim a market size from these. They show the problem is not hypothetical.
 
 **The one-sentence problem:** *there is no neutral, evidence-backed way to decide who is at fault when a sealed package arrives wrong, and no consequence for the party who caused it.*
 
@@ -51,9 +51,34 @@ The invariants that make this more than a demo (all in `CLAUDE.md`):
 - The buyer's own wallet signs create, cancel and unlock. The relayer cannot release funds before the buyer asks.
 - Tamper is latched in both the firmware and the contract.
 - GPS is evidence only. The venue is indoors, so escrow never depends on a fix, and simulated GPS is always labelled `SIMULATED`.
-- Every state change on the dashboard is an on-chain event with an explorer link. Raw telemetry stays off-chain, hash-chained and anchored.
+- Every state change on the dashboard is an on-chain event with an explorer link. Raw telemetry stays off-chain, hash-chained, with the log head anchored on-chain.
 
-## 4. What is built today, and what is not
+## 4. One protocol, many forms
+
+The box is a representation, not the product. What TamperSafe actually is:
+
+```
+  sense  ->  latch  ->  report  ->  settle
+ (any tamper   (state     (signed,     (escrow rules
+  signal)      survives    hash-        fixed before
+               a reboot)   chained)     dispatch)
+```
+
+None of the four steps depends on the container being a parcel box. The contracts, the relayer, the hash-chained log and the dashboard are form-agnostic. Only the **sensing and latching layer** changes with the form:
+
+| Form | What "sealed" means | Sensing that fits |
+| :--- | :--- | :--- |
+| Parcel box (built) | Lid latched | Lid IR, shock and tilt, reboot-is-tamper, RFID tag |
+| Shipping container | Door seal intact | Door-open contact, bolt-seal integrity, shock, location |
+| Truck or trailer cargo bay | Rear and side doors closed | Door contacts, cargo-area motion, GPS trail, cellular |
+| Pallet or crate | Wrap and strap intact | Strap tension, tilt, shock |
+| Cargo aircraft or rail wagon door | Door seal intact | Door contact, dwell-location events |
+
+**What we are claiming, and what we are not:** the settlement and evidence layer transfers unchanged, and that is the hard, valuable part. Each new form still needs its own sensors, a mounting design, power and connectivity, and often certification. Today only the parcel box exists. The reason to think the surface is large is the size of the trade and theft problem (§1), not anything we have measured about demand. We do not put a market number on it.
+
+**Why this matters for the pitch.** A judge who sees a small box may read it as a gadget. The point is that the box proves the loop end to end: a physical event becomes a latched record, becomes an automatic financial consequence, and nobody in the middle can quietly change it.
+
+## 5. What is built today, and what is not
 
 Read this before believing any use case in §5.
 
@@ -78,7 +103,7 @@ Read this before believing any use case in §5.
 - Cellular connectivity. The demo box uses Wi-Fi only.
 - A production bill of materials. The Neurick board is an organiser-supplied dev kit.
 
-## 5. Use cases, ranked
+## 6. Use cases, ranked
 
 Ranked by how well the current box fits, not by market size. Each one names what supports it and what is missing.
 
@@ -114,7 +139,7 @@ Ranked by how well the current box fits, not by market size. Each one names what
 
 **Where we would not pitch it:** low-value parcels, since a box costs more than the fraud. Perishables, since there is no cold chain. Anything where the tamper that matters happens before the seal.
 
-## 6. Business model
+## 7. Business model
 
 We have not validated pricing. This section names who pays and for what, and shows where the economics are decided. No prices are stated because we cannot source them.
 
@@ -139,7 +164,7 @@ It works only when `value > cost`, which means **high-value goods and high fraud
 
 **The honest weak spot is reverse logistics.** A reusable box has to come back. If the return leg costs more than it saves, the model fails. Mitigations to test in a pilot: dedicated routes where boxes return in the same trip, depot-to-depot loops, and B2B lanes where the box shuttles between two known sites.
 
-## 7. Why blockchain, and why not just a database
+## 8. Why blockchain, and why not just a database
 
 The question MST judges will ask.
 
@@ -153,7 +178,7 @@ The question MST judges will ask.
 
 **What the chain does not fix.** It does not make the sensor honest. The chain only guarantees that once the box says something, the consequence is automatic and the record is fixed. Trust in the box is a separate problem (§8).
 
-## 8. Trust and threat model
+## 9. Trust and threat model
 
 What this proves, and what it does not.
 
@@ -170,7 +195,7 @@ What this proves, and what it does not.
 | **Physical attacks on the box** (cut the case, defeat the sensor, jam Wi-Fi) | Any hardware can be defeated by enough effort | Reboot-is-tamper, signal-lost alerts, and tamper latched in the box. The goal is to make it expensive and evident, not impossible |
 | **Connectivity** is a hotspot in the demo | Silent periods are gaps | Ring buffer and retry, `SIGNAL_LOST` and `LOG_GAP` alerts. Roadmap: LTE-M or NB-IoT |
 
-## 9. Objections and honest answers
+## 10. Objections and honest answers
 
 | Objection | Answer |
 | :--- | :--- |
@@ -184,7 +209,7 @@ What this proves, and what it does not.
 | "Isn't this just tamper tape plus GPS?" | Tape and GPS produce evidence a human argues over. Here the evidence and the money are the same system (§2). |
 | "What stops the relayer cheating?" | It cannot choose a payee and cannot release before the buyer asks. It can still falsely report tamper. That is the known gap, and device-signed attestations are the fix. |
 
-## 10. Go-to-market and pilot
+## 11. Go-to-market and pilot
 
 1. **Design partner, not a launch.** One seller or marketplace with high-value shipments and a known dispute rate.
 2. **One closed lane.** Depot to a small set of customers, boxes that return in the same loop. This isolates the reverse-logistics question.
@@ -193,7 +218,7 @@ What this proves, and what it does not.
 
 **Build order after the buildathon:** device-signed events, courier-signed seal, weight or photo at seal, cellular, secure element. In that order, because the first two remove the two largest trust gaps in §8.
 
-## 11. See it
+## 12. See it
 
 - Demo script and cut-lines: [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)
 - Design and trust model: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §3
