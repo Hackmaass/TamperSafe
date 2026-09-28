@@ -1,22 +1,19 @@
 #pragma once
 #include <Arduino.h>
 
-// Package binding via the RC522 reader. Evidence only: a missing or changed tag
-// raises the PACKAGE_MISMATCH alert (code 16). It never changes box state and
-// never causes a tamper or a refund.
+// The buyer's delivery key: one enrolled RFID tag. At the doorstep the buyer
+// signs "Confirm & Unlock" on-chain, then taps the key to open the latch. This
+// proves the buyer is physically at the box; it never moves funds by itself.
+// Any tag other than the enrolled one is "wrong". Nothing is written to a tag.
+
+enum class Tag : uint8_t { None, Key, Other };
 
 bool rfidInit();
 
-// At seal: remember the tag on the reader. Returns false if no tag is present
-// (the box then seals without package monitoring).
-bool rfidBind();
+// Call about 4 times a second. Returns a result ONCE per presentation of a tag
+// (on the moment it arrives), and only after its UID was read successfully: a
+// failed read is never reported as "wrong". With enroll = true, the first tag
+// read is stored as the delivery key instead (and reported as Key).
+Tag rfidScan(bool enroll = false);
 
-// While SEALED, call about once a second. Raises PACKAGE_MISMATCH once per
-// seal after 3 consecutive polls with the tag absent or a different one.
-void rfidWatch();
-
-// Forget the bound tag (unlock / reset / boot).
-void rfidUnbind();
-
-// True while a tag is bound (for status output).
-bool rfidBound();
+bool rfidHasKey();

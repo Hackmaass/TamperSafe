@@ -37,3 +37,8 @@ void nvsSaveTamperCode(uint8_t code);
 // --- boot_count
 uint32_t nvsLoadBootCount();
 uint32_t nvsIncrementBootCount(); // returns the new count
+
+// The enrolled delivery-key tag (its UID). len 0 = none enrolled. Any other tag
+// is treated as wrong, so nothing is ever written to a tag.
+size_t nvsLoadKeyUid(uint8_t *out, size_t maxLen);
+void nvsSaveKeyUid(const uint8_t *uid, size_t len);

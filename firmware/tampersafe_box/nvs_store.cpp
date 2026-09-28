@@ -61,3 +61,12 @@ uint32_t nvsIncrementBootCount() {
   prefs.putUInt("boot_count", c);
   return c;
 }
+
+size_t nvsLoadKeyUid(uint8_t *out, size_t maxLen) {
+  size_t len = prefs.getBytesLength("key_uid");
+  if (len == 0 || len > maxLen) return 0;
+  return prefs.getBytes("key_uid", out, len);
+}
+void nvsSaveKeyUid(const uint8_t *uid, size_t len) {
+  prefs.putBytes("key_uid", uid, len);
+}

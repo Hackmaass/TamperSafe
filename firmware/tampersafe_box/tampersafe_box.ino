@@ -1,7 +1,7 @@
 // TamperSafe box firmware -- main sketch.
 //
 // A sealed box watches its lid (IR), shock/tilt (MPU6050), position (GPS) and
-// package identity (RFID), latches any tamper in NVS before reporting it, and
+// and the buyer's RFID delivery key, latches any tamper in NVS before reporting it, and
 // reports hash-chained events to the relayer over Wi-Fi. See
 // docs/ARCHITECTURE.md §8-9 and docs/HARDWARE.md.
 //
@@ -24,6 +24,7 @@
 #include "mpu.h"
 #include "sensors.h"
 #include "rfid.h"
+#include "led.h"
 
 Newrick nr;
 
@@ -67,13 +68,29 @@ static const char *tamperCodeName(uint8_t code) {
 // --- Scheduler cadence, per ARCHITECTURE.md §8 --------------------------------
 #define IR_INTERVAL_MS         50   // 20 Hz
 #define MPU_INTERVAL_MS        50   // 20 Hz
-#define RFID_INTERVAL_MS       1000 // 1 Hz
+#define RFID_INTERVAL_MS       250  // 4 Hz
 #define SENSORS_INTERVAL_MS    500  // 2 Hz  (nr.updateSensors())
 #define OLED_INTERVAL_MS       500  // 2 Hz
 #define TELEMETRY_SEALED_MS    2000
 #define TELEMETRY_OTHER_MS     10000
 
 static unsigned long tIr = 0, tRfid = 0, tMpu = 0, tSensors = 0, tOled = 0, tTelemetry = 0;
+
+// Doorstep unlock is two-factor. The buyer's signed "Confirm & Unlock" reaches
+// the box as an UNLOCK command, which ARMS it (blue LED); the latch only opens
+// when the enrolled delivery key is then tapped. RAM only: a reboot while
+// sealed is still POWER_INTERRUPTED, so nothing extra needs persisting.
+static bool unlockArmed = false;
+static char armedCmdId[32] = "";
+
+// Enrolment (IDLE only): hold the board button ~2 s, then tap the tag to
+// enrol as the delivery key. Every other tag is wrong.
+#define ENROLL_HOLD_SAMPLES 4     // 4 x 500 ms sensor polls
+#define ENROLL_WINDOW_MS    10000
+static uint8_t buttonHeld = 0;
+static unsigned long enrollUntil = 0; // 0 = not enrolling
+
+#define ALERT_AUTH_FAILED 17 // wrong delivery key tapped on a sealed box (evidence only)
 
 // Last cmd_id we printed an "IGNORED command" line for, so a command the
 // relayer keeps resending (per §9.2, "the relayer re-sends an
@@ -142,7 +159,6 @@ static void attemptSeal(uint32_t orderId, const char *cmdId) {
   ctx.lock = 'L';
 
   if (!mpuSetReference()) Serial.println("MPU: no gravity reading at seal -- tilt alerts off for this shipment");
-  if (!rfidBind()) Serial.println("RFID: no tag on the reader at seal -- package monitoring off for this shipment");
 
   ctx.state = BoxState::SEALED;
   nvsSaveState("SEALED"); // latch...
@@ -157,7 +173,7 @@ static void doUnlock(const char *cmdId) {
   nvsSaveState("OPEN_AUTHORIZED");
   nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   ctx.lock = 'U';
-  rfidUnbind();
+  unlockArmed = false;
   mpuClearReference();
   emitEvent("UNLOCKED", 0, cmdId);
 }
@@ -175,7 +191,7 @@ static void doReset(const char *cmdId) {
   // OPEN_AUTHORIZED). Flagged for the team to confirm.
   nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   ctx.lock = 'U';
-  rfidUnbind();
+  unlockArmed = false;
   mpuClearReference();
   ctx.state = BoxState::IDLE;
   nvsSaveState("IDLE");
@@ -248,11 +264,11 @@ static void reportStatus() {
   // boot-time print -- the CDC Serial Monitor often attaches after that
   // first print has already scrolled past, so PASS/FAIL needs to stay
   // visible on both Serial and the OLED for as long as the box is on.
-  Serial.printf("[state=%s] order=%lu seq=%lu batt=%s wifi=%s lock=%c lid=%s gps=%s rfid=%s accel=%ldmg tilt=%ld selftest=%s\n",
+  Serial.printf("[state=%s] order=%lu seq=%lu batt=%s wifi=%s lock=%c lid=%s gps=%s key=%s accel=%ldmg tilt=%ld selftest=%s\n",
                 boxStateName(ctx.state), (unsigned long)ctx.orderId, (unsigned long)ctx.seq,
                 ctx.battValid ? String(nr.batteryVolts, 2).c_str() : "?",
                 wifiOk ? "OK" : "--", ctx.lock, ctx.lid ? "closed" : "OPEN", ctx.fix ? "fix" : (gpsHeard() ? "nofix" : "silent"),
-                rfidBound() ? "bound" : "-", (long)ctx.accelMg, (long)ctx.tiltDeg, g_selfTestOk ? "PASS" : "FAIL");
+                unlockArmed ? "armed" : (rfidHasKey() ? "key" : "none"), (long)ctx.accelMg, (long)ctx.tiltDeg, g_selfTestOk ? "PASS" : "FAIL");
 
   // 128x32 at text size 1 = 21 chars/row, 4 rows (y=0/8/16/24). Wrap is
   // disabled deliberately: a wrapped line 3 ("TAMPERED: POWER_INTERRUPTED"
@@ -288,6 +304,36 @@ static void reportStatus() {
   display.display();
 }
 
+// A delivery-key tap (or a wrong tag). Only an armed SEALED box opens.
+static void onTag(Tag tag, bool enrolled) {
+  if (enrolled) {
+    enrollUntil = 0;
+    Serial.println("RFID: delivery key enrolled");
+    ledFlash(LED_G, 1500);
+    return;
+  }
+  if (ctx.state == BoxState::IDLE) { // bench feedback at the depot: is this the key?
+    Serial.printf("RFID: %s tag (IDLE)\n", tag == Tag::Key ? "delivery key" : "WRONG");
+    ledFlash(tag == Tag::Key ? LED_G : LED_R, 1500);
+    return;
+  }
+  // SEALED
+  if (tag == Tag::Key && unlockArmed) {
+    Serial.println("RFID: delivery key accepted -- opening");
+    ledFlash(LED_G, 2000);
+    doUnlock(armedCmdId);
+    strlcpy(ctx.lastHandledCmdId, armedCmdId, sizeof(ctx.lastHandledCmdId));
+    networkAckCommandHandled(armedCmdId);
+  } else if (tag == Tag::Key) {
+    Serial.println("RFID: delivery key tapped but the buyer has not confirmed on-chain yet");
+    ledFlash(LED_B, 600);
+  } else {
+    Serial.println("RFID: WRONG tag on a sealed box");
+    ledFlash(LED_R, 2000);
+    emitAlertEvent(ALERT_AUTH_FAILED);
+  }
+}
+
 // ---------------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
@@ -319,8 +365,11 @@ void setup() {
   g_selfTestOk = runProtocolSelfTest(); // prints SELFTEST PASS/FAIL; boot continues either way so the team can still see a FAIL on Serial/OLED rather than the box going dark
 
   sensorsInit();
+  ledInit();
   if (!rfidInit()) {
-    Serial.println("WARNING: RC522 not answering -- package monitoring disabled (check the RFID socket wiring)");
+    Serial.println("WARNING: RC522 not answering -- the delivery key cannot open the box (check the RFID socket wiring)");
+  } else if (!rfidHasKey()) {
+    Serial.println("RFID: no delivery key enrolled -- hold the board button 2 s in IDLE, then tap the key");
   }
 
   if (!mpuInit()) {
@@ -392,11 +441,27 @@ void loop() {
     }
   }
 
-  // --- RFID (1 Hz, SEALED only): package still on the reader? Alert-only.
+  // --- RFID delivery key (4 Hz). Never touches funds: it only gates the physical latch.
   if (now - tRfid >= RFID_INTERVAL_MS) {
     tRfid = now;
-    if (ctx.state == BoxState::SEALED) rfidWatch();
+    bool enrolling = enrollUntil != 0;
+    if (enrolling && (long)(enrollUntil - now) <= 0) {
+      enrollUntil = 0;
+      enrolling = false;
+      ledFlash(LED_R, 1000); // enrolment timed out
+    }
+    if (ctx.state == BoxState::IDLE || ctx.state == BoxState::SEALED) {
+      Tag tag = rfidScan(enrolling);
+      if (tag != Tag::None) onTag(tag, enrolling);
+    }
   }
+
+  // --- LED: tamper blinks red, armed pulses blue, enrolling is cyan; a scan result flashes over it.
+  if (ctx.state == BoxState::TAMPERED) ledBackground(LED_R, 500);
+  else if (unlockArmed) ledBackground(LED_B, 400);
+  else if (enrollUntil != 0) ledBackground(LED_CYAN);
+  else ledBackground(LED_OFF);
+  ledTick();
 
   // --- MPU6050 (20 Hz).
   if (now - tMpu >= MPU_INTERVAL_MS) {
@@ -422,6 +487,12 @@ void loop() {
       ctx.battMv = (int32_t)lroundf(nr.batteryVolts * 1000.0f);
       ctx.battValid = true;
       lastBattOkMs = now;
+      buttonHeld = (nr.buttonState != 0) ? buttonHeld + 1 : 0;
+      if (ctx.state == BoxState::IDLE && enrollUntil == 0 && buttonHeld >= ENROLL_HOLD_SAMPLES) {
+        enrollUntil = now + ENROLL_WINDOW_MS;
+        buttonHeld = 0;
+        Serial.println("RFID: enrolling -- tap the tag that should be the delivery key");
+      }
     }
     // else: stale nr.batteryVolts/ctx.battMv are kept for display, but
     // attemptSeal()'s freshness check (lastBattOkMs) stops them from
@@ -451,8 +522,13 @@ void loop() {
         attemptSeal(cmdOrderId, cmdId);
         handled = true;
       } else if (strcmp(cmdType, "UNLOCK") == 0 && ctx.state == BoxState::SEALED && cmdOrderId == ctx.orderId) {
-        doUnlock(cmdId);
-        handled = true;
+        // The buyer has signed on-chain. Arm and wait for the delivery key;
+        // don't ack yet (the relayer resends until UNLOCKED carries the id).
+        if (!unlockArmed) {
+          unlockArmed = true;
+          strlcpy(armedCmdId, cmdId, sizeof(armedCmdId));
+          Serial.println("UNLOCK armed: waiting for the delivery key");
+        }
       } else if (strcmp(cmdType, "UNLOCK") == 0 && ctx.state == BoxState::IDLE && ctx.orderId != 0 &&
                  cmdOrderId == ctx.orderId) {
         // Idempotent, mirroring the RESET-in-IDLE case below: a brownout
