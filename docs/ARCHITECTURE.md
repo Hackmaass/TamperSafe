@@ -22,7 +22,7 @@ Chain facts, compiler rules and Neurick board facts live in `CLAUDE.md` and the 
 
 ```
 ┌──────────── TamperSafe box ────────────┐
-│ HC-SR04 (contents)   IR (lid)          │
+│ IR (lid)             RFID (package)    │
 │ GPS NEO-6M           MPU6050 (shock)   │
 │ Servo latch (STM32)  OLED (state)      │
 │ ESP32-S3: state machine, NVS latch,    │

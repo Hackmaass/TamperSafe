@@ -14,7 +14,7 @@ Board facts and wiring rules live in `CLAUDE.md` and the `neurick-firmware` skil
 | GPS | u-blox NEO-6M | **NEO-6M (CH11)** | 3.3–5 V | Evidence only. |
 | Latch servo | MG995 | **MG995 (Port S2)** | 12 V battery | High-torque servo latch. **Calibrated: LOCK = 180°, UNLOCK = 90°.** |
 | Box | Cardboard/acrylic | **Physical demo box** | — | IR sensor on rim facing lid underside; servo latch inside. |
-| RFID reader | RC522 | ☐ TBD — pin not yet confirmed | 3.3 V | SPI, needs its own SCK/MOSI/MISO/SDA(SS)/RST — do not reuse the shared I2C pins |
+| RFID reader | RC522 | **RC522 on the extension board's RFID socket** | 3.3 V | SPI on GPIO 3 (SS), 18 (SCK), 17 (MOSI), 16 (MISO). Found by scan and verified: reads a tag UID and detects presence and removal. Version register reads 0x82 (a clone), so the library self-test reports FAIL; that is expected |
 | Optional | LDR + 10 kΩ, microSD card | **LDR** (`sensors.xlsx` #18) and **8 GB Sandisk microSD** (`sensors.xlsx` #1) both confirmed in hand | 3.3 V | Stretch only |
 
 ---
@@ -28,7 +28,7 @@ The GPIOs below are **proposed**. They avoid the unavailable pins, the strapping
 | **IR lid sensor** | OUT | **GPIO 15** | **CH15** (Header Pin 10) | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. |
 | **GPS → ESP (UART1 RX)** | TX | **GPIO 11** | **CH11** (Header Pin 28) | 3.3 V / 5 V | Direct if TX ≤ 3.3 V. Evidence-only. |
 | **Latch servo** | Signal | STM32 servo **S2** | **Servo 2 port** | 12 V battery | `nr.servo(LOCK, LOCK, LOCK)` / `nr.servo(UNLOCK, UNLOCK, UNLOCK)`. All three channels commanded together. **LOCK = 180°, UNLOCK = 90°** (calibrated 29-Sep-2026). |
-| **RFID Reader** | SPI | MFRC522 | TBD | 3.3 V | Package binding via RFID tag UID. CH2/GPIO2 was proposed but is unavailable (onboard hardware, per CLAUDE.md) — needs a real proposal against the Neurick manual, not yet confirmed. |
+| **RFID Reader** | SPI | MFRC522 | **RFID socket: SS=GPIO 3, SCK=18, MOSI=17, MISO=16** | 3.3 V | Package binding via RFID tag UID, alert-only. The socket also routes RST to **GPIO 15, the IR sensor's pin**: leave the RC522's RST wire unplugged (open item: confirm the reader still answers without it). Receiver gain must stay mid-range; max gain saturates this clone. GPIO 3 is a strapping pin but works here. |
 | **Onboard LDR** | AO | ADC1 (GPIO 4) | Extension board | 3.3 V | Interior light sensor for box integrity. |
 | **Motion (PIR)** | — | — | **DROPPED** | — | Dropped for simplicity. |
 | **Ultrasonic** | — | — | **DROPPED** | — | Dropped for simplicity. |
@@ -88,7 +88,7 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 | **GPS** | every loop | Valid when TinyGPS location is valid and its age < 5 s | Evidence only |
 | **RFID tag** | 1 Hz | Read tag UID at seal. While SEALED, tag UID absent or changed for 3 consecutive reads (3 s) | ALERT `PACKAGE_MISMATCH` (16) — evidence only, never TAMPER |
 | Battery | 2 Hz | `batteryVolts` < 10.5 V → refuse SEAL, show `LOW BATT` | — |
-| Servo | — | LOCK angle = ☐, UNLOCK angle = ☐ | — |
+| Servo | — | LOCK angle = 180°, UNLOCK angle = 90° (calibrated 29-Sep-2026, all three channels commanded together) | — |
 
 ---
 
