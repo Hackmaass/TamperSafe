@@ -30,3 +30,6 @@ landing-page/node_modules/
 landing-page/dist/
 
 
+
+# Organiser guide: contains the organiser MCP client secret; never publish
+docs/BUILDATHON_GUIDE.pdf
