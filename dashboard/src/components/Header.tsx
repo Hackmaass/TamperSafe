@@ -70,13 +70,14 @@ export function Header({ tab, onTab, networkKey, onNetwork, wallet, online, conn
               Switch wallet to {net.label}
             </button>
           ) : (
-            <span className="pill white mono">
+            <span className="pill white mono" title={`Connected with ${wallet.walletName ?? "wallet"}`}>
+              {wallet.walletName ? `${wallet.walletName} · ` : ""}
               {wallet.account.slice(0, 6)}…{wallet.account.slice(-4)}
             </span>
           )
         ) : (
           <button className="btn small" onClick={() => void wallet.connect()} disabled={wallet.connecting}>
-            {wallet.connecting ? "Connecting…" : "Connect wallet"}
+            {wallet.connecting ? "Connecting…" : `Connect ${wallet.walletName ?? "wallet"}`}
           </button>
         )}
       </div>
