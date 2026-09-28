@@ -15,7 +15,8 @@ export const ALERT_CODES: Record<number, string> = {
   13: "LOG_GAP",
   14: "ROUTE_DEVIATION",
   15: "SENSOR_FAULT",
-  16: "PACKAGE_MISMATCH",
+  16: "PACKAGE_MISMATCH", // retired: the reader now serves the delivery key
+  17: "AUTH_FAILED", // wrong RFID tag tapped on a sealed box
 };
 
 // TamperSafeEscrow.ReleaseKind

@@ -294,6 +294,14 @@ export function BuyerTab({ network, wallet }: Props) {
         )}
       </Panel>
 
+      {orders.some(({ order }) => order.status === 3) && (
+        <Panel title="Next: tap your delivery key">
+          <p className="muted" style={{ margin: 0 }}>
+            You confirmed on-chain. Tap your delivery key on the box to open it. A wrong key keeps it locked and is logged as evidence.
+          </p>
+        </Panel>
+      )}
+
       {entries.length > 0 && (
         <Panel title="Your transactions">
           <TxList entries={entries} />

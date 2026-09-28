@@ -4,12 +4,12 @@
 - Project chosen: **TamperSafe** (below). The planning docs in `docs/` are written.
 - Hacking window: 28 Sept 2026, 15:30 IST → 29 Sept, 15:30 IST (confirm the end time with the organisers).
 - **Gate lifted 28 Sept 2026.** The team said "start". Code, contracts, firmware and scaffolds may now be written, per `docs/IMPLEMENTATION_PLAN.md`.
-- M2 (hardware bring-up) and M4's remaining pin-dependent work (RFID driver) are blocked on RFID pins only — IR (CH15/GPIO15) and GPS (CH11/GPIO11) are confirmed, `docs/neurick/Neurick_Manual.pdf` has been copied in and read. Tracks A (contracts) and C (relayer/dashboard) proceed now.
-- **RFID added for the demo (28 Sept):** an MFRC522 reader binds the sealed package's identity via its tag UID. It is evidence-only (`Alert PACKAGE_MISMATCH`, code 16) and never gates an escrow transition — no contract or protocol change. See `docs/ARCHITECTURE.md` §6 and `docs/HARDWARE.md` §1/§2/§5.
+- M2 (hardware bring-up) and M4's remaining pin-dependent work (RFID driver) are blocked on RFID pins only — IR (CH14/GPIO14, moved off CH15 to free the RFID RST pin) and GPS (CH11/GPIO11) are confirmed, `docs/neurick/Neurick_Manual.pdf` has been copied in and read. Tracks A (contracts) and C (relayer/dashboard) proceed now.
+- **RFID added for the demo (28 Sept):** an MFRC522 reader holds the buyer's delivery key (one enrolled tag). The buyer's on-chain Confirm & Unlock arms the box; tapping the key then opens the latch (green LED), any other tag stays locked (red LED) and raises evidence alert 17 `AUTH_FAILED`. It gates the physical latch only: it never moves funds, triggers a refund or changes a contract — no contract or protocol change. The old package-binding use (code 16) is retired. See `docs/ARCHITECTURE.md` §6 and `docs/HARDWARE.md` §1/§2/§5.
 - **Neurick library source received (28 Sept), copied to `docs/neurick/`.** It's the STM32 command-protocol library (`Newrick.h`/`.cpp`), not a P1 header pinout manual. It appeared to correct an API mismatch: `servo()` takes channels **S1, S2, S4** (no S3) — CLAUDE.md and HARDWARE.md were changed to match, and firmware (`tampersafe_box.ino`, `servo_angles.ino`) currently codes against S1/S2/S4.
-- **UNRESOLVED (28 Sept): servo channel conflict.** `docs/neurick/Neurick_Manual.pdf` (received later the same day) states the opposite — `servo(s1_angle, s2_angle, s3_angle)`, three physical ports **Servo 1/2/3**, no S4 anywhere. Two "confirmed" sources disagree on live firmware. Team will check the physical board (port silkscreen + the actual `Newrick.h` on hand) before this is touched again — do not change servo code or docs on either side of this until confirmed against real hardware.
-- **Hardware architecture simplified (28 Sept):** Team decision to completely drop the ultrasonic (HC-SR04) and external motion (PIR) sensors. Lid tamper sensing is handled exclusively by the **Infrared obstacle sensor on CH15 (GPIO 15)**. Motion/shock remains with the onboard MPU6050 (0x68).
-- **M1 (contracts) done, reviewed against every invariant, pushed** — 68 tests. **M3's protocol module done** (`relayer/src/protocol.ts` + `relayer/test/vectors.json`), cross-checked independently with `openssl`. **M4's non-pin-dependent firmware done** (skeleton, NVS latch, network task, MPU alerts, servo) — compiles clean, but the 4 on-box scenarios still need confirmed pins and a real box.
+- **Servo channel conflict RESOLVED (29 Sept):** the firmware commands all three servo channels to the same angle (`servo(a, a, a)`, as in `firmware/bringup/servo_test`), so the S3-vs-S4 parameter naming no longer matters. The latch is on physical Servo 2; calibrated LOCK = 180°, UNLOCK = 90°.
+- **Hardware architecture simplified (28 Sept):** Team decision to completely drop the ultrasonic (HC-SR04) and external motion (PIR) sensors. Lid tamper sensing is handled exclusively by the **Infrared obstacle sensor on CH14 (GPIO 14)**. Motion/shock remains with the onboard MPU6050 (0x68).
+- **M1 (contracts) done, reviewed against every invariant, pushed** — 70 tests. **M3's protocol module done** (`relayer/src/protocol.ts` + `relayer/test/vectors.json`), cross-checked independently with `openssl`. **M4's non-pin-dependent firmware done** (skeleton, NVS latch, network task, MPU alerts, servo) — compiles clean, but the 4 on-box scenarios still need confirmed pins and a real box.
 - **Wi-Fi is the only box↔laptop transport, for the demo only** (team confirmed — no USB-serial telemetry path).
 - **`docs/ARCHITECTURE.md` §10 now has state-aware relayer rules**, added because firmware re-emits TAMPER on every TAMPERED boot: the relayer must check on-chain order status before acting, not just react to the device event, or a repeat TAMPER/UNLOCK causes an endless revert-retry loop.
 - **No `Co-Authored-By` trailer on commits, per the user's instruction** (28 Sept) — git author/committer was already "Omkar Rane" throughout; only the message-body trailer is dropped, going forward only (existing history is untouched).
@@ -20,10 +20,10 @@ A tamper-evident delivery box with on-chain escrow. The buyer's payment sits in 
 How it works:
 1. At the depot the box locks itself with a servo latch.
 2. In transit it watches:
-   - its lid (IR on CH15)
+   - its lid (IR on CH14)
    - its motion/shock (onboard MPU6050)
    - its location (GPS on CH11)
-   - its package identity (RFID tag)
+   - the buyer at the door (RFID delivery key)
 3. It reports to a laptop relayer, which writes state changes to chain.
 4. Settlement:
    - A clean delivery pays the seller.

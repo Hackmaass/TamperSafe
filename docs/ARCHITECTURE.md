@@ -22,7 +22,7 @@ Chain facts, compiler rules and Neurick board facts live in `CLAUDE.md` and the 
 
 ```
 ┌──────────── TamperSafe box ────────────┐
-│ IR (lid)             RFID (package)    │
+│ IR (lid)             RFID (key)        │
 │ GPS NEO-6M           MPU6050 (shock)   │
 │ Servo latch (STM32)  OLED (state)      │
 │ ESP32-S3: state machine, NVS latch,    │
@@ -218,7 +218,8 @@ Errors: `StaleSeq(orderId, seq, latestSeq)` — `anchor` reverts when `seq` does
 | 13 | `LOG_GAP` | relayer: sequence gap |
 | 14 | `ROUTE_DEVIATION` | relayer (stretch S1) |
 | 15 | `SENSOR_FAULT` | box: ultrasonic invalid reads |
-| 16 | `PACKAGE_MISMATCH` | RFID reader: sealed package's tag UID absent or changed while SEALED |
+| 16 | `PACKAGE_MISMATCH` | Retired (was package binding). Do not reuse |
+| 17 | `AUTH_FAILED` | RFID reader: a tag other than the enrolled delivery key was tapped on a sealed box |
 
 **Box states**: `BOOT · IDLE · ARMING · SEALED · TAMPERED · OPEN_AUTHORIZED`
 
@@ -263,7 +264,8 @@ stateDiagram-v2
 - **NVS keys:** `state`, `order_id`, `seq`, `head`, `baseline_mm`, `tamper_code`, `boot_count`.
   - Write `state` immediately on every transition.
   - Write `seq` and `head` on every event generated.
-- **Alerts** (SHOCK, TILT, SENSOR_FAULT, PACKAGE_MISMATCH) never change state. `PACKAGE_MISMATCH` is identity evidence, not a tamper signal — it does not gate `reportTamper` or any escrow transition.
+- **Alerts** (SHOCK, TILT, SENSOR_FAULT, AUTH_FAILED) never change state. `AUTH_FAILED` is evidence, not a tamper signal — it does not gate `reportTamper` or any escrow transition.
+- **Doorstep unlock is two-factor.** The buyer's signed `requestUnlock` produces an UNLOCK command, which only *arms* the box (RAM flag, blue LED, command left unacknowledged). The latch opens when the enrolled delivery key is tapped; the box then emits UNLOCKED with the command id and the relayer calls `confirmDelivery`. A wrong tag leaves the box locked. One key is enrolled by holding the board button in IDLE and tapping the tag; it is stored in NVS, and every other tag is wrong.
 - **Thresholds and sampling rates** are in `docs/HARDWARE.md` §5.
 
 **Two tasks, so the network never blinds the sensors.** An HTTP POST can block for up to 3 s, and a lid lifted and re-closed inside a stalled POST must still latch. The work is split across the two cores:

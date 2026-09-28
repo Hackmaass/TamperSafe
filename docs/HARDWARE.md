@@ -10,7 +10,7 @@ Board facts and wiring rules live in `CLAUDE.md` and the `neurick-firmware` skil
 | :--- | :--- | :--- | :--- | :--- |
 | Ultrasonic | HC-SR04 | **DROPPED** | — | Dropped for simplicity; lid tamper is handled purely by the IR sensor. |
 | Motion (PIR) | HC-SR501 | **DROPPED** | — | Dropped for simplicity. Onboard MPU6050 handles shock/tilt if enabled. |
-| IR lid sensor | FC-51 / TCRT5000 | **FC-51 IR obstacle module (CH15 / GPIO 15)** | 3.3 V | Primary physical tamper sensor; senses lid reflection. |
+| IR lid sensor | FC-51 / TCRT5000 | **FC-51 IR obstacle module (CH14 / GPIO 14)** | 3.3 V | Primary physical tamper sensor; senses lid reflection. |
 | GPS | u-blox NEO-6M | **NEO-6M (CH11)** | 3.3–5 V | Evidence only. |
 | Latch servo | MG995 | **MG995 (Port S2)** | 12 V battery | High-torque servo latch. **Calibrated: LOCK = 180°, UNLOCK = 90°.** |
 | Box | Cardboard/acrylic | **Physical demo box** | — | IR sensor on rim facing lid underside; servo latch inside. |
@@ -25,10 +25,11 @@ The GPIOs below are **proposed**. They avoid the unavailable pins, the strapping
 
 | Function | Module pin | ESP32-S3 GPIO | Extension / P1 Pin | Supply | Level handling |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **IR lid sensor** | OUT | **GPIO 15** | **CH15** (Header Pin 10) | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. |
+| **IR lid sensor** | OUT | **GPIO 14** | **CH14** | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. |
 | **GPS → ESP (UART1 RX)** | TX | **GPIO 11** | **CH11** (Header Pin 28) | 3.3 V / 5 V | Direct if TX ≤ 3.3 V. Evidence-only. |
 | **Latch servo** | Signal | STM32 servo **S2** | **Servo 2 port** | 12 V battery | `nr.servo(LOCK, LOCK, LOCK)` / `nr.servo(UNLOCK, UNLOCK, UNLOCK)`. All three channels commanded together. **LOCK = 180°, UNLOCK = 90°** (calibrated 29-Sep-2026). |
-| **RFID Reader** | SPI | MFRC522 | **RFID socket: SS=GPIO 3, SCK=18, MOSI=17, MISO=16** | 3.3 V | Package binding via RFID tag UID, alert-only. The socket also routes RST to **GPIO 15, the IR sensor's pin**: leave the RC522's RST wire unplugged (open item: confirm the reader still answers without it). Receiver gain must stay mid-range; max gain saturates this clone. GPIO 3 is a strapping pin but works here. |
+| **RFID Reader** | SPI | MFRC522 | **RFID socket: SS=GPIO 3, SCK=18, MOSI=17, MISO=16, RST=15** | 3.3 V | The buyer's delivery key (one enrolled tag, other tags wrong). IR moved to CH14, so GPIO 15 is free for the reader's RST. Receiver gain must stay mid-range; max gain saturates this clone. GPIO 3 is a strapping pin but works here. |
+| **Status LED** | Extension-board RGB LED | active-high | **GPIO 5 = red, 6 = green, 7 = blue** | 3.3 V | Off normally. Blue pulse = armed, waiting for the key. Green = key accepted (latch opens). Red = wrong tag (2 s) or a latched tamper (blinking). Cyan = enrolling. |
 | **Onboard LDR** | AO | ADC1 (GPIO 4) | Extension board | 3.3 V | Interior light sensor for box integrity. |
 | **Motion (PIR)** | — | — | **DROPPED** | — | Dropped for simplicity. |
 | **Ultrasonic** | — | — | **DROPPED** | — | Dropped for simplicity. |
@@ -86,7 +87,7 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 | **Shock** | 20 Hz | `abs(accel) > 2.5 g`, at most 1 per 10 s | ALERT `SHOCK` (10) |
 | **Tilt** | 20 Hz | Tilt > 60° for 3 s | ALERT `TILT` (11) |
 | **GPS** | every loop | Valid when TinyGPS location is valid and its age < 5 s | Evidence only |
-| **RFID tag** | 1 Hz | Read tag UID at seal. While SEALED, tag UID absent or changed for 3 consecutive reads (3 s) | ALERT `PACKAGE_MISMATCH` (16) — evidence only, never TAMPER |
+| **RFID delivery key** | 4 Hz | A tag is classified once, when it arrives, and only after its UID was read successfully | Key while armed: open latch. Wrong tag while SEALED: ALERT `AUTH_FAILED` (17), evidence only |
 | Battery | 2 Hz | `batteryVolts` < 10.5 V → refuse SEAL, show `LOW BATT` | — |
 | Servo | — | LOCK angle = 180°, UNLOCK angle = 90° (calibrated 29-Sep-2026, all three channels commanded together) | — |
 
@@ -108,5 +109,5 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 3. The servo reaches LOCK and UNLOCK. With the latch locked, the lid cannot be lifted.
 4. Seal the box, then walk it around the room for 60 s: **zero** tamper events.
 5. Lift the lid 1 cm: `LID_OPENED` within 300 ms. Remove the package: `CONTENTS_DISTURBED` within 1.5 s.
-6. Present the demo package's RFID tag, seal, then pull the tag away: `PACKAGE_MISMATCH` alert within 3 s, and confirm the order stays InTransit (no tamper, no escrow transition).
+6. Enrol the delivery key (hold the board button 2 s in IDLE, tap the tag). Tap it and the wrong tag 10 times each in IDLE: green and red exactly once per tap. Then seal, sign Confirm & Unlock: the LED turns blue, the wrong tag flashes red and stays locked (`AUTH_FAILED` logged, order stays UnlockRequested), the right key flashes green and opens the latch.
 7. Write the calibrated thresholds and angles back into §5 and commit.

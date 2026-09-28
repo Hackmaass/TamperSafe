@@ -9,7 +9,7 @@ A clean delivery pays the seller. Any tamper refunds the buyer and slashes the c
 | Chain | MST Testnet (chain id 91562037), explorer [testnet.mstscan.com](https://testnet.mstscan.com) |
 | Escrow contract | [`0xC876A0F58592BE567081a752a0Ad53106EFD1223`](https://testnet.mstscan.com/address/0xC876A0F58592BE567081a752a0Ad53106EFD1223) |
 | Wallet | [BridgeKey](https://bridgekey.io), the official MST wallet (preferred), or any EIP-1193 wallet |
-| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, GPS, RC522 RFID and a servo latch |
+| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, GPS, RC522 RFID delivery key, RGB status LED and a servo latch |
 | More | [`pitch.md`](pitch.md) (problem, use cases, business model, limits) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/HARDWARE.md`](docs/HARDWARE.md) |
 
 ---
@@ -45,9 +45,9 @@ Today's fixes each cover one piece. Tamper tape shows a seal broke, but the evid
 TamperSafe makes **detection, evidence and settlement one system**. The box that detects a tamper is the same one whose report moves the money, under rules nobody can change after dispatch.
 
 1. **Seal.** At the depot the servo latch locks the box. The buyer's payment is already in escrow and the courier's bond is locked against the shipment.
-2. **Transit.** The box watches its lid (IR), motion and shock (MPU6050), location (GPS) and package identity (RFID tag). A tamper is latched in the box's non-volatile memory, and a reboot or power loss mid-transit counts as tamper.
+2. **Transit.** The box watches its lid (IR), motion and shock (MPU6050), location (GPS). A tamper is latched in the box's non-volatile memory, and a reboot or power loss mid-transit counts as tamper.
 3. **Report.** The box reports over Wi-Fi to a relayer. Every event is hash-chained and authenticated with a per-box secret. The relayer writes state changes to chain and anchors the log head.
-4. **Settle.** The buyer confirms at the doorstep and the box unlocks. Clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond.
+4. **Settle.** The buyer confirms at the doorstep: they sign "Confirm & Unlock" on-chain, which arms the box (blue LED), then tap their RFID delivery key on it. The right key gives a green LED and opens the latch; a wrong tag gives red, the box stays locked and the attempt is logged as evidence. Once it opens, Clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond.
 
 **Invariants the design holds to:**
 
@@ -83,7 +83,7 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data, with BridgeKey-first wallet discovery |
 | Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and running on the board. Full on-box scenarios with the relayer over Wi-Fi are still being run |
-| IR lid tamper rule, RFID package binding (alert-only `PACKAGE_MISMATCH`), GPS | Drivers written and flashed. The RC522 reads a tag and detects removal on the bench. GPS reports no data yet |
+| IR lid tamper rule, RFID delivery key with LED feedback, GPS | Written and flashed. The RC522 reads tags on the bench and the LED pins are mapped. The full unlock handshake is not yet run end to end. GPS reports no data yet |
 | An end-to-end order on MST Testnet | **Not yet run.** The transaction hashes will be listed below once it is |
 
 **Not built, and not claimed:** temperature or cold chain, contents or weight detection, on-chain device signatures, cellular connectivity, a production bill of materials.

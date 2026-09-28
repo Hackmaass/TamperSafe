@@ -41,7 +41,7 @@ TamperSafe's difference is that **detection, evidence and settlement are one sys
 ## 3. How it works (four steps)
 
 1. **Seal.** At the depot the servo latch locks the box. The buyer's payment is already in the escrow contract, and the courier's bond is locked against the shipment.
-2. **Transit.** The box watches its lid (IR sensor), motion and shock (MPU6050), location (GPS) and package identity (RFID tag). A tamper is latched in the box's own non-volatile memory. A reboot or power loss mid-transit counts as tamper.
+2. **Transit.** The box watches its lid (IR sensor), motion and shock (MPU6050), location (GPS). A tamper is latched in the box's own non-volatile memory. A reboot or power loss mid-transit counts as tamper.
 3. **Report.** The box reports over Wi-Fi to a relayer. Every event is hash-chained and authenticated with a per-box secret. The relayer writes the state change to chain and anchors the log head.
 4. **Settle.** The buyer confirms at the doorstep and the box unlocks. Clean delivery pays the seller. A tamper refunds the buyer and slashes the courier's bond to the seller.
 
@@ -68,7 +68,7 @@ None of the four steps depends on the container being a parcel box. The contract
 
 | Form | What "sealed" means | Sensing that fits |
 | :--- | :--- | :--- |
-| Parcel box (built) | Lid latched | Lid IR, shock and tilt, reboot-is-tamper, RFID tag |
+| Parcel box (built) | Lid latched | Lid IR, shock and tilt, reboot-is-tamper, RFID delivery key |
 | Shipping container | Door seal intact | Door-open contact, bolt-seal integrity, shock, location |
 | Truck or trailer cargo bay | Rear and side doors closed | Door contacts, cargo-area motion, GPS trail, cellular |
 | Pallet or crate | Wrap and strap intact | Strap tension, tilt, shock |
@@ -91,8 +91,8 @@ Read this before believing any use case in §6.
 | Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware. Firmware wired to it |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and compiles. The full on-box scenarios have not run |
 | Box to relayer over Wi-Fi | Firmware written. **Never run on hardware yet**: no Wi-Fi credentials are set |
-| IR lid sensor | Reads on the bench. The tamper rule in the main firmware is not written yet. Its pin (GPIO15) currently clashes with the RFID reader's reset line |
-| RFID package binding (RC522) | Reader verified on the board: reads a tag UID and detects presence and removal. **Not yet integrated** into the main firmware. It will be **alert-only** (`PACKAGE_MISMATCH`) and never triggers a refund |
+| IR lid sensor and tamper rule | Rule written in the main firmware (4 open samples while sealed latch `LID_OPENED`). The sensor is on CH14. The cover-and-uncover bench test has not been done yet |
+| RFID delivery key (RC522) + RGB LED | The buyer signs Confirm & Unlock on-chain, which arms the box (blue). Tapping the enrolled key gives green and opens the latch; any other tag gives red, stays locked and logs evidence alert 17 `AUTH_FAILED`. The key never moves funds. Written and flashed; the reader and LED work on the bench. The full handshake with the relayer has not been run yet. The static tag UID is a demo credential and is cloneable, so production would use a challenge-response (phone NFC or a signed nonce) |
 | GPS | **Not yet integrated**: the driver is still a stub. It will be evidence only and report `NO_FIX` indoors |
 | Runs without hardware (sim-box) and without testnet (`CHAIN=local`) | Built. This is the fallback if the box misbehaves on stage |
 

@@ -108,6 +108,8 @@ export function TrackTab({ relayer }: { relayer: RelayerState }) {
         <Tile label="Battery" value={snap && snap.batt_mv > 0 ? `${(snap.batt_mv / 1000).toFixed(1)} V` : "—"} />
       </div>
 
+      {onChainOrder && <DoorstepPanel status={onChainOrder.status} failedTaps={boxFeed.filter((f) => f.title === "AUTH_FAILED").length} />}
+
       <div className="grid-2">
         <Panel title="Location">
           <TrackMap trail={trail} badge={box.gps} />
@@ -161,6 +163,30 @@ export function TrackTab({ relayer }: { relayer: RelayerState }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// The doorstep handshake: the buyer signs on-chain, then taps the delivery key
+// on the box. Shown from the on-chain order status, so it reflects the chain.
+function DoorstepPanel({ status, failedTaps }: { status: number; failedTaps: number }) {
+  const step: Record<number, [string, string]> = {
+    1: ["Waiting to be sealed", "The order is funded. The depot seals the box next."],
+    2: ["In transit", "Waiting for the buyer to confirm on-chain (Confirm & Unlock)."],
+    3: ["Signed. Tap the delivery key", "The buyer confirmed on-chain. The box is armed and opens when the buyer's key is tapped on it."],
+    4: ["Opened with the delivery key", "Delivered. The seller has been paid."],
+    5: ["Tampered", "The box latched a tamper. The buyer was refunded and the courier's bond slashed."],
+  };
+  const [title, detail] = step[status] ?? ["—", ""];
+  return (
+    <Panel title="Doorstep" right={<span className="tag-chain">on-chain status</span>}>
+      <div className="value" style={{ fontSize: 24, fontWeight: 500 }}>{title}</div>
+      <p className="muted" style={{ margin: "0.5em 0 0" }}>{detail}</p>
+      {failedTaps > 0 && (
+        <p className="error">
+          {failedTaps} wrong-key {failedTaps === 1 ? "attempt" : "attempts"} recorded (AUTH_FAILED, evidence only)
+        </p>
+      )}
+    </Panel>
   );
 }
 
