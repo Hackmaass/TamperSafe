@@ -28,3 +28,8 @@ bool mpuReadAccelTilt(int32_t *outAccelMg, int32_t *outTiltDeg);
 // ALERT events as needed (rate-limited). Call at 20 Hz. Never changes box
 // state -- alerts are evidence only (ARCHITECTURE §8).
 void mpuEvaluateAlerts(int32_t accelMg, int32_t tiltDeg);
+
+// Tilt is measured against the orientation at seal, not a fixed board axis.
+// Set the reference when sealing, clear it on unlock/reset.
+bool mpuSetReference();
+void mpuClearReference();

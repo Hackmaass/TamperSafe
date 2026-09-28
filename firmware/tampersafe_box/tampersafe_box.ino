@@ -1,15 +1,9 @@
 // TamperSafe box firmware -- main sketch.
 //
-// M2/M4 status (read before flashing): docs/HARDWARE.md §1-2 are still all
-// TBD/☐ -- no sensor pin has been confirmed by the team, and there is no
-// physical box yet. Per CLAUDE.md's board discipline ("a sketch uses only
-// pins the team has confirmed... a TBD row blocks"), this sketch does NOT
-// drive the ultrasonic, IR lid, GPS or RFID hardware -- see pins.h and
-// sensors_stub.cpp. What IS real here: the state machine, the NVS tamper
-// latch, the hash chain + HMAC self-test, the core-0 network task, the
-// servo (with placeholder angles), and MPU6050 shock/tilt alerts -- none
-// of those need a single header pin, since they're either onboard I2C
-// (fixed addresses, not TBD) or pure logic.
+// A sealed box watches its lid (IR), shock/tilt (MPU6050), position (GPS) and
+// package identity (RFID), latches any tamper in NVS before reporting it, and
+// reports hash-chained events to the relayer over Wi-Fi. See
+// docs/ARCHITECTURE.md §8-9 and docs/HARDWARE.md.
 //
 // setup() order follows the neurick-firmware skill exactly:
 //   Serial.begin -> nr.begin() -> OLED display.begin() -> other peripherals.
@@ -28,7 +22,8 @@
 #include "nvs_store.h"
 #include "network_task.h"
 #include "mpu.h"
-#include "sensors_stub.h"
+#include "sensors.h"
+#include "rfid.h"
 
 Newrick nr;
 
@@ -71,14 +66,14 @@ static const char *tamperCodeName(uint8_t code) {
 
 // --- Scheduler cadence, per ARCHITECTURE.md §8 --------------------------------
 #define IR_INTERVAL_MS         50   // 20 Hz
-#define ULTRASONIC_INTERVAL_MS 100  // 10 Hz
 #define MPU_INTERVAL_MS        50   // 20 Hz
+#define RFID_INTERVAL_MS       1000 // 1 Hz
 #define SENSORS_INTERVAL_MS    500  // 2 Hz  (nr.updateSensors())
 #define OLED_INTERVAL_MS       500  // 2 Hz
 #define TELEMETRY_SEALED_MS    2000
 #define TELEMETRY_OTHER_MS     10000
 
-static unsigned long tIr = 0, tUltra = 0, tMpu = 0, tSensors = 0, tOled = 0, tTelemetry = 0;
+static unsigned long tIr = 0, tRfid = 0, tMpu = 0, tSensors = 0, tOled = 0, tTelemetry = 0;
 
 // Last cmd_id we printed an "IGNORED command" line for, so a command the
 // relayer keeps resending (per §9.2, "the relayer re-sends an
@@ -100,17 +95,17 @@ static bool g_selfTestOk = false;
 static unsigned long lastBattOkMs = 0;
 #define BATTERY_FRESH_MS 2000
 
+// Lid must read open this many 50 ms samples in a row to latch LID_OPENED.
+#define LID_OPEN_SAMPLES 4
+static uint8_t lidOpenStreak = 0;
+
 // ---------------------------------------------------------------------------
 // Seal / unlock / reset -- the only places that move the servo or write NVS
 // `state`. Every one of them writes NVS BEFORE the corresponding event goes
 // to the network task (CLAUDE.md invariant: "Latch before report").
 // ---------------------------------------------------------------------------
 
-// Reserved for the real IR/ultrasonic tamper rules once HARDWARE.md §2 is
-// confirmed (PINS_CONFIRMED=1) -- unused for now since detection never
-// calls it, hence the attribute to silence the "defined but not used"
-// warning without deleting the function the rules will need.
-__attribute__((unused)) static void doTamper(uint8_t code) {
+static void doTamper(uint8_t code) {
   // Tamper rules only run in SEALED (CLAUDE.md invariant: "Tamper only
   // while SEALED"). Callers are responsible for that check; this function
   // just performs the transition once a caller has already decided to.
@@ -127,27 +122,27 @@ static void attemptSeal(uint32_t orderId, const char *cmdId) {
   ctx.orderId = orderId;
   nvsSaveOrderId(orderId);
 
-  // Lid check skipped: IR is stubbed (PINS_CONFIRMED=0 in pins.h). A real
-  // ARMING must refuse to seal with the lid open (ARCHITECTURE §8:
-  // "ARMING --> IDLE: lid open or battery low -> SEAL_FAILED") -- only the
-  // battery half of that guard is real here.
+  // ARCHITECTURE §8: "ARMING --> IDLE: lid open or battery low -> SEAL_FAILED".
+  ctx.lid = lidClosed() ? 1 : 0;
   bool batteryFresh = ctx.battValid && (millis() - lastBattOkMs <= BATTERY_FRESH_MS);
   bool batteryOk = batteryFresh && (nr.batteryVolts >= BATTERY_MIN_VOLTS);
 
-  if (!batteryOk) {
+  if (!batteryOk || ctx.lid == 0) {
     ctx.state = BoxState::IDLE;
     nvsSaveState("IDLE");
     emitEvent("SEAL_FAILED", 0, cmdId); // SEAL_FAILED is an event, not a persisted state (§6 lists 6 states, not 7)
     return;
   }
 
-  // Baseline capture stubbed: the real rule (HARDWARE.md §5) is "median of
-  // 20 reads over 2s" from the ultrasonic sensor, which doesn't exist yet.
-  ctx.baselineMm = 0; // FAKE
+  // The ultrasonic contents baseline was dropped (28 Sept); the field stays 0.
+  ctx.baselineMm = 0;
   nvsSaveBaseline(0);
 
   nr.servo(LOCK_ANGLE, LOCK_ANGLE, LOCK_ANGLE); // calibrated
   ctx.lock = 'L';
+
+  if (!mpuSetReference()) Serial.println("MPU: no gravity reading at seal -- tilt alerts off for this shipment");
+  if (!rfidBind()) Serial.println("RFID: no tag on the reader at seal -- package monitoring off for this shipment");
 
   ctx.state = BoxState::SEALED;
   nvsSaveState("SEALED"); // latch...
@@ -162,6 +157,8 @@ static void doUnlock(const char *cmdId) {
   nvsSaveState("OPEN_AUTHORIZED");
   nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   ctx.lock = 'U';
+  rfidUnbind();
+  mpuClearReference();
   emitEvent("UNLOCKED", 0, cmdId);
 }
 
@@ -178,6 +175,8 @@ static void doReset(const char *cmdId) {
   // OPEN_AUTHORIZED). Flagged for the team to confirm.
   nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
   ctx.lock = 'U';
+  rfidUnbind();
+  mpuClearReference();
   ctx.state = BoxState::IDLE;
   nvsSaveState("IDLE");
   emitEvent("RESET_DONE", 0, cmdId);
@@ -249,10 +248,11 @@ static void reportStatus() {
   // boot-time print -- the CDC Serial Monitor often attaches after that
   // first print has already scrolled past, so PASS/FAIL needs to stay
   // visible on both Serial and the OLED for as long as the box is on.
-  Serial.printf("[state=%s] order=%lu seq=%lu batt=%s wifi=%s lock=%c selftest=%s\n",
+  Serial.printf("[state=%s] order=%lu seq=%lu batt=%s wifi=%s lock=%c lid=%s gps=%s rfid=%s accel=%ldmg tilt=%ld selftest=%s\n",
                 boxStateName(ctx.state), (unsigned long)ctx.orderId, (unsigned long)ctx.seq,
                 ctx.battValid ? String(nr.batteryVolts, 2).c_str() : "?",
-                wifiOk ? "OK" : "--", ctx.lock, g_selfTestOk ? "PASS" : "FAIL");
+                wifiOk ? "OK" : "--", ctx.lock, ctx.lid ? "closed" : "OPEN", ctx.fix ? "fix" : (gpsHeard() ? "nofix" : "silent"),
+                rfidBound() ? "bound" : "-", (long)ctx.accelMg, (long)ctx.tiltDeg, g_selfTestOk ? "PASS" : "FAIL");
 
   // 128x32 at text size 1 = 21 chars/row, 4 rows (y=0/8/16/24). Wrap is
   // disabled deliberately: a wrapped line 3 ("TAMPERED: POWER_INTERRUPTED"
@@ -318,6 +318,11 @@ void setup() {
 
   g_selfTestOk = runProtocolSelfTest(); // prints SELFTEST PASS/FAIL; boot continues either way so the team can still see a FAIL on Serial/OLED rather than the box going dark
 
+  sensorsInit();
+  if (!rfidInit()) {
+    Serial.println("WARNING: RC522 not answering -- package monitoring disabled (check the RFID socket wiring)");
+  }
+
   if (!mpuInit()) {
     Serial.println("WARNING: MPU6050 init failed (0x68 not answering?) -- SHOCK/TILT alerts disabled until it recovers");
   }
@@ -362,26 +367,38 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // --- IR lid (20 Hz): stubbed, no-op. Real driver + tamper rule land once
-  // HARDWARE.md §2's IR row is confirmed and PINS_CONFIRMED flips to 1.
+  // --- IR lid (20 Hz). While SEALED, the lid reading open for 4 consecutive
+  // samples (200 ms) is TAMPER LID_OPENED (HARDWARE.md §5).
   if (now - tIr >= IR_INTERVAL_MS) {
     tIr = now;
-    (void)readLidIR();
+    bool closed = lidClosed();
+    ctx.lid = closed ? 1 : 0;
+    if (ctx.state == BoxState::SEALED && !closed) {
+      if (++lidOpenStreak >= LID_OPEN_SAMPLES) doTamper(1); // LID_OPENED
+    } else {
+      lidOpenStreak = 0;
+    }
   }
 
-  // --- Ultrasonic (10 Hz): stubbed, no-op. Same as above.
-  if (now - tUltra >= ULTRASONIC_INTERVAL_MS) {
-    tUltra = now;
-    (void)readUltrasonicMm();
-  }
-
-  // --- GPS (every loop): stubbed, no-op.
+  // --- GPS (every loop): evidence only, never gates escrow.
   {
     int32_t lat, lon;
-    (void)readGPS(&lat, &lon); // ctx.lat_e6/lon_e6/fix stay at their FAKE defaults
+    if (gpsPoll(&lat, &lon)) {
+      ctx.lat_e6 = lat;
+      ctx.lon_e6 = lon;
+      ctx.fix = 1;
+    } else {
+      ctx.fix = 0;
+    }
   }
 
-  // --- MPU6050 (20 Hz): real.
+  // --- RFID (1 Hz, SEALED only): package still on the reader? Alert-only.
+  if (now - tRfid >= RFID_INTERVAL_MS) {
+    tRfid = now;
+    if (ctx.state == BoxState::SEALED) rfidWatch();
+  }
+
+  // --- MPU6050 (20 Hz).
   if (now - tMpu >= MPU_INTERVAL_MS) {
     tMpu = now;
     int32_t accelMg, tiltDeg;
@@ -398,7 +415,7 @@ void loop() {
     // else: keep the stale ctx values, per "always check the return value"
   }
 
-  // --- nr.updateSensors() (2 Hz): real (battery, button).
+  // --- nr.updateSensors() (2 Hz): battery, button.
   if (now - tSensors >= SENSORS_INTERVAL_MS) {
     tSensors = now;
     if (nr.updateSensors()) {

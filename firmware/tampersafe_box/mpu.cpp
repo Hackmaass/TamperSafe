@@ -37,6 +37,15 @@ bool mpuInit() {
   return true;
 }
 
+// Unit gravity vector captured at seal. Tilt is measured against THIS, not a
+// fixed board axis, because the board's mounting (HARDWARE.md §4) is not
+// known to the firmware -- on the bench it reads ~177 deg from its own +Z at
+// rest. Until a reference exists, tilt reads 0.
+static float refX = 0, refY = 0, refZ = 0;
+static bool refValid = false;
+static float lastX = 0, lastY = 0, lastZ = 0;
+static bool haveSample = false;
+
 bool mpuReadAccelTilt(int32_t *outAccelMg, int32_t *outTiltDeg) {
   Wire.beginTransmission(I2C_ADDR_MPU6050);
   Wire.write(REG_ACCEL_XOUT_H);
@@ -47,33 +56,39 @@ bool mpuReadAccelTilt(int32_t *outAccelMg, int32_t *outTiltDeg) {
   int16_t ay = (Wire.read() << 8) | Wire.read();
   int16_t az = (Wire.read() << 8) | Wire.read();
 
-  float axg = ax / ACCEL_LSB_PER_G;
-  float ayg = ay / ACCEL_LSB_PER_G;
-  float azg = az / ACCEL_LSB_PER_G;
+  lastX = ax / ACCEL_LSB_PER_G;
+  lastY = ay / ACCEL_LSB_PER_G;
+  lastZ = az / ACCEL_LSB_PER_G;
+  haveSample = true;
 
-  float mag = sqrtf(axg * axg + ayg * ayg + azg * azg);
+  float mag = sqrtf(lastX * lastX + lastY * lastY + lastZ * lastZ);
   *outAccelMg = (int32_t)lroundf(mag * 1000.0f);
 
-  // Tilt = angle between the measured accel vector and the board's own +Z
-  // axis, which approximates device tilt from vertical when the box is
-  // roughly static (accel vector ~= gravity). Not valid during a genuine
-  // free-fall/shock transient, which is exactly when SHOCK (not TILT)
-  // should be firing.
-  //
-  // TODO: calibrate in M2. This assumes the board's Z axis is vertical when
-  // the box sits normally -- true only if the board is mounted flat.
-  // HARDWARE.md §4 puts the board in a side compartment, which may mean the
-  // board sits on its side (Z roughly horizontal), in which case this would
-  // read ~90 deg at rest and misfire TILT once at boot. Capture a reference
-  // gravity vector at SEAL time and measure tilt relative to THAT vector,
-  // not a hardcoded axis, once the physical mounting is known.
-  float magSafe = (mag < 0.01f) ? 0.01f : mag;
-  float cosTilt = azg / magSafe;
-  if (cosTilt > 1.0f) cosTilt = 1.0f;
-  if (cosTilt < -1.0f) cosTilt = -1.0f;
-  *outTiltDeg = (int32_t)lroundf(acosf(cosTilt) * 180.0f / (float)M_PI);
-
+  // Angle between the measured vector and the seal-time reference. Only
+  // meaningful while roughly static (accel ~= gravity); during a real shock
+  // SHOCK, not TILT, is the alert that matters.
+  *outTiltDeg = 0;
+  if (refValid && mag >= 0.01f) {
+    float cosTilt = (lastX * refX + lastY * refY + lastZ * refZ) / mag;
+    if (cosTilt > 1.0f) cosTilt = 1.0f;
+    if (cosTilt < -1.0f) cosTilt = -1.0f;
+    *outTiltDeg = (int32_t)lroundf(acosf(cosTilt) * 180.0f / (float)M_PI);
+  }
   return true;
+}
+
+bool mpuSetReference() {
+  float mag = sqrtf(lastX * lastX + lastY * lastY + lastZ * lastZ);
+  if (!haveSample || mag < 0.5f) return false; // no usable gravity reading yet
+  refX = lastX / mag;
+  refY = lastY / mag;
+  refZ = lastZ / mag;
+  refValid = true;
+  return true;
+}
+
+void mpuClearReference() {
+  refValid = false;
 }
 
 // SHOCK: |accel| > 2.5g, rate-limited to at most 1 per 10s (HARDWARE.md §5).

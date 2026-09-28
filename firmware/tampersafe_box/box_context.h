@@ -22,7 +22,7 @@ struct BoxContext {
   char head[65];
 
   uint8_t tamperCode = 0;   // 0 = not tampered
-  uint32_t baselineMm = 0;  // FAKE (0) until ultrasonic pins are confirmed
+  uint32_t baselineMm = 0;  // always 0: the ultrasonic contents baseline was dropped
 
   char lock = 'U';          // 'L'/'U', mirrors the last commanded servo position
 
@@ -31,10 +31,10 @@ struct BoxContext {
   int32_t tiltDeg = 0;
   int32_t battMv = 0;       // 0 until the first successful nr.updateSensors()
   bool battValid = false;   // true once at least one updateSensors() call has succeeded
-  int32_t distMm = 0;       // FAKE (0) -- ultrasonic stubbed, PINS_CONFIRMED=0
-  uint8_t lid = 1;          // FAKE (1=closed) -- IR stubbed, PINS_CONFIRMED=0
+  int32_t distMm = 0;       // always 0 (no ultrasonic); kept because it is in the canonical event
+  uint8_t lid = 1;          // 1 closed, 0 open (IR sensor)
   int32_t lat_e6 = 0, lon_e6 = 0;
-  uint8_t fix = 0;          // FAKE (0=no fix) -- GPS stubbed, PINS_CONFIRMED=0
+  uint8_t fix = 0;          // 1 while GPS has a valid fix under 5 s old
 
   uint32_t ts = 0;          // unix seconds from NTP, 0 until synced (network task sets this)
 
