@@ -206,6 +206,7 @@ export function buildRouter(deps: RouteDeps): express.Router {
         state: snap?.state ?? null,
         gps: snap ? gpsBadge(snap) : "NO_FIX",
         pendingCommand: deps.commands.getForBox(b.label) ?? null,
+        snapshot: snap ?? null,
       };
     });
     res.json({ boxes });

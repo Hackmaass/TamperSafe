@@ -19,6 +19,7 @@ import {
   microdegreesToDegrees,
 } from "../lib/format";
 import { TxList } from "./TxList";
+import { Empty, Panel, Pill } from "./ui";
 
 interface Props {
   network: NetworkConfig;
@@ -216,89 +217,88 @@ export function BuyerTab({ network, wallet }: Props) {
   );
 
   if (!wallet.account) {
-    return <p>Connect a wallet to see your orders.</p>;
+    return <Empty>Connect a wallet to create and manage orders.</Empty>;
   }
 
   return (
-    <div className="tab-buyer">
-      <section>
-        <h3>Create order</h3>
-        <form onSubmit={submitCreateOrder}>
-          <label>
-            Seller address
+    <div className="stack">
+      <Panel title="New order">
+        <form className="form row" onSubmit={submitCreateOrder}>
+          <label className="field">
+            <span>Seller address</span>
             <input value={seller} onChange={(e) => setSeller(e.target.value)} placeholder="0x…" />
           </label>
-          <label>
-            Amount (tMSTC)
+          <label className="field">
+            <span>Amount (tMSTC)</span>
             <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.01" />
           </label>
-          <label>
-            Destination latitude
+          <label className="field">
+            <span>Destination lat</span>
             <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="12.9716" />
           </label>
-          <label>
-            Destination longitude
+          <label className="field">
+            <span>Destination lon</span>
             <input value={lon} onChange={(e) => setLon(e.target.value)} placeholder="77.5946" />
           </label>
-          <label>
-            Deadline
-            <input
-              type="datetime-local"
-              value={deadlineLocal}
-              onChange={(e) => setDeadlineLocal(e.target.value)}
-            />
+          <label className="field">
+            <span>Deadline</span>
+            <input type="datetime-local" value={deadlineLocal} onChange={(e) => setDeadlineLocal(e.target.value)} />
           </label>
-          <button type="submit">Create &amp; fund order</button>
+          <button className="btn" type="submit">
+            Create and fund
+          </button>
         </form>
-        {formError && <p className="form-error">{formError}</p>}
-      </section>
+        {formError && <p className="error">{formError}</p>}
+      </Panel>
 
-      <section>
-        <h3>My orders</h3>
-        {loading && <p>Loading…</p>}
-        {loadError && <p className="form-error">{loadError}</p>}
-        {!loading && !loadError && orders.length === 0 && <p>No orders yet.</p>}
-        <table>
-          <thead>
-            <tr>
-              <th>Id</th>
-              <th>Seller</th>
-              <th>Amount</th>
-              <th>Destination</th>
-              <th>Status</th>
-              <th>Money went to</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map(({ id, order }) => (
-              <tr key={id.toString()}>
-                <td>{id.toString()}</td>
-                <td>{order.seller === ZeroAddress ? "—" : order.seller}</td>
-                <td>{formatTMSTC(order.amount)}</td>
-                <td>
-                  {microdegreesToDegrees(order.destLat).toFixed(4)}, {microdegreesToDegrees(order.destLon).toFixed(4)}
-                </td>
-                <td>{statusLabel(order.status)}</td>
-                <td>{moneyWentTo(order)}</td>
-                <td>
-                  <button type="button" disabled={order.status !== 1} onClick={() => void cancelOrder(id)}>
-                    Cancel
-                  </button>
-                  <button type="button" disabled={order.status !== 2} onClick={() => void confirmAndUnlock(id)}>
-                    Confirm &amp; Unlock
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <Panel title="My orders">
+        {loading && <span className="muted">Loading…</span>}
+        {loadError && <p className="error">{loadError}</p>}
+        {!loading && !loadError && orders.length === 0 && <span className="muted">No orders yet.</span>}
+        {orders.length > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Seller</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Money</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map(({ id, order }) => (
+                  <tr key={id.toString()}>
+                    <td className="mono">#{id.toString()}</td>
+                    <td className="mono">{order.seller === ZeroAddress ? "—" : `${order.seller.slice(0, 6)}…${order.seller.slice(-4)}`}</td>
+                    <td>{formatTMSTC(order.amount)}</td>
+                    <td>
+                      <Pill tone={order.status === 5 ? "red" : order.status === 4 ? "white" : undefined}>{statusLabel(order.status)}</Pill>
+                    </td>
+                    <td className="muted">{moneyWentTo(order)}</td>
+                    <td className="actions">
+                      <button className="btn ghost small" disabled={order.status !== 1} onClick={() => void cancelOrder(id)}>
+                        Cancel
+                      </button>
+                      <button className="btn small" disabled={order.status !== 2} onClick={() => void confirmAndUnlock(id)}>
+                        Confirm and unlock
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
-      <section>
-        <h3>Transactions</h3>
-        <TxList entries={entries} />
-      </section>
+      {entries.length > 0 && (
+        <Panel title="Your transactions">
+          <TxList entries={entries} />
+        </Panel>
+      )}
     </div>
   );
 }

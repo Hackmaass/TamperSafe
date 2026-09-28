@@ -2,7 +2,9 @@
 
 The operational app: Buyer / Courier / Depot / Track / Evidence tabs, MetaMask, live chain + relayer data. Not the landing page (`landing-page/`, static pitch site, see `docs/frontend.md`) — different codebase, different job, no shared components.
 
-Lives in `dashboard/`. Stack already in place: Vite + React + TypeScript, ethers v6, no router (tab switching is local `useState` in `App.tsx`). Buyer and Courier tabs are built. This doc covers what's left: Depot, Track, Evidence, plus matching the landing page's visual identity.
+Lives in `dashboard/`. Vite + React + TypeScript, ethers v6, Leaflet, plain CSS with the tokens below (no Tailwind, no component library, no router: the tab is in the URL hash). **Redesigned 29 Sept: five tabs, nothing else.** Every number on screen comes from the relayer or the chain; there is no mock data and no client-side simulation, so if the relayer is down the page says so.
+
+Run against a populated local stack: `ORCHESTRATOR_KEEP_ALIVE=1 npm run sim -- tamper` in `relayer/` (leaves node + relayer up on :4100), then `RELAYER_URL=http://127.0.0.1:4100 npm run dev` in `dashboard/`.
 
 ---
 

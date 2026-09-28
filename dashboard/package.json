@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "TamperSafe dashboard: Buyer/Courier tabs (M5 first two items) signing txs via MetaMask against deployments/*.json.",
+  "description": "TamperSafe dashboard: Track, Buyer, Courier, Depot and Evidence, live from the relayer and the chain.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,7 +13,6 @@
   "dependencies": {
     "ethers": "^6.13.5",
     "leaflet": "^1.9.4",
-    "lucide-react": "^1.48.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -22,9 +21,6 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.6.1",
-    "postcss": "^8.5.28",
-    "tailwindcss": "^3.4.19",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }

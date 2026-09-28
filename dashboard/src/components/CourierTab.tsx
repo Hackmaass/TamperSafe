@@ -7,6 +7,7 @@ import { getEscrowContract, getReadProvider } from "../lib/contracts";
 import { getAbi } from "../lib/deployments";
 import { decodeContractError, formatTMSTC } from "../lib/format";
 import { TxList } from "./TxList";
+import { Empty, Panel } from "./ui";
 
 interface Props {
   network: NetworkConfig;
@@ -123,45 +124,54 @@ export function CourierTab({ network, wallet }: Props) {
   );
 
   if (!wallet.account) {
-    return <p>Connect a wallet to see your bond.</p>;
+    return <Empty>Connect the courier wallet to manage the bond.</Empty>;
   }
 
   return (
-    <div className="tab-courier">
-      <section>
-        <h3>Bond balance</h3>
-        {loadError && <p className="form-error">{loadError}</p>}
-        <p>Free (withdrawable): {free != null ? formatTMSTC(free) : "…"}</p>
-        <p>Locked (against a sealed shipment): {locked != null ? formatTMSTC(locked) : "…"}</p>
-      </section>
+    <div className="stack">
+      <div className="grid-2">
+        <Panel className="tile" title="Free bond">
+          <div className="value">{free != null ? formatTMSTC(free) : "…"}</div>
+          <div className="sub">withdrawable</div>
+        </Panel>
+        <Panel className="tile" title="Locked bond">
+          <div className="value">{locked != null ? formatTMSTC(locked) : "…"}</div>
+          <div className="sub">held against a sealed shipment</div>
+        </Panel>
+      </div>
+      {loadError && <p className="error">{loadError}</p>}
 
-      <section>
-        <h3>Deposit bond</h3>
-        <form onSubmit={deposit}>
-          <label>
-            Amount (tMSTC)
-            <input value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
-          </label>
-          <button type="submit">Deposit</button>
-        </form>
-      </section>
+      <div className="grid-2">
+        <Panel title="Deposit">
+          <form className="form" onSubmit={deposit}>
+            <label className="field">
+              <span>Amount (tMSTC)</span>
+              <input value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
+            </label>
+            <button className="btn" type="submit">
+              Deposit bond
+            </button>
+          </form>
+        </Panel>
+        <Panel title="Withdraw">
+          <form className="form" onSubmit={withdraw}>
+            <label className="field">
+              <span>Amount (tMSTC)</span>
+              <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+            </label>
+            <button className="btn ghost" type="submit">
+              Withdraw bond
+            </button>
+          </form>
+          {formError && <p className="error">{formError}</p>}
+        </Panel>
+      </div>
 
-      <section>
-        <h3>Withdraw bond</h3>
-        <form onSubmit={withdraw}>
-          <label>
-            Amount (tMSTC)
-            <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
-          </label>
-          <button type="submit">Withdraw</button>
-        </form>
-        {formError && <p className="form-error">{formError}</p>}
-      </section>
-
-      <section>
-        <h3>Transactions</h3>
-        <TxList entries={entries} />
-      </section>
+      {entries.length > 0 && (
+        <Panel title="Your transactions">
+          <TxList entries={entries} />
+        </Panel>
+      )}
     </div>
   );
 }

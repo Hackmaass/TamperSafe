@@ -252,6 +252,13 @@ async function main(): Promise<void> {
     }
 
     console.log(`[orchestrator] PASS: scenario "${scenario}" reached status ${wantStatus} with correct balance deltas and no permanent tx failures.`);
+    if (process.env.ORCHESTRATOR_KEEP_ALIVE) {
+      // Dev aid: leave the node + relayer up so the dashboard can be pointed at
+      // a real, populated stack (RELAYER_URL=http://127.0.0.1:4100 npm run dev
+      // in dashboard/). Ctrl+C tears everything down via the SIGINT handler.
+      console.log(`[orchestrator] KEEP_ALIVE: relayer at ${RELAYER_URL}, hardhat node at ${RPC_URL}. Ctrl+C to stop.`);
+      await new Promise<never>(() => {});
+    }
   } finally {
     console.log("[orchestrator] tearing down...");
     if (txWatcher) await txWatcher.stop().catch(() => {});

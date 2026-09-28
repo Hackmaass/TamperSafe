@@ -11,5 +11,11 @@ export default defineConfig({
     fs: {
       allow: [".."],
     },
+    proxy: {
+      "/api": {
+        target: process.env.RELAYER_URL ?? "http://localhost:4000",
+        changeOrigin: true,
+      },
+    },
   },
 });
