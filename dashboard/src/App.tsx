@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_NETWORK, NETWORKS, type NetworkKey } from "./config/networks";
 import { useWallet } from "./hooks/useWallet";
 import { useRelayer } from "./hooks/useRelayer";
@@ -24,9 +24,16 @@ export function App() {
   };
   const network = NETWORKS[networkKey];
 
+  // The relayer knows which chain it writes to; start on that one so a fresh
+  // page never reads a different chain than the box is settling on.
+  const relayerChain = relayer.chain;
+  useEffect(() => {
+    if (relayerChain) setNetworkKey(relayerChain);
+  }, [relayerChain]);
+
   return (
     <>
-      <Header tab={tab} onTab={setTab} networkKey={networkKey} onNetwork={setNetworkKey} wallet={wallet} online={relayer.online} connecting={relayer.connecting} />
+      <Header tab={tab} onTab={setTab} networkKey={networkKey} onNetwork={setNetworkKey} wallet={wallet} online={relayer.online} connecting={relayer.connecting} relayerChain={relayer.chain} />
       <main className="page">
         {tab === "track" && <TrackTab relayer={relayer} />}
         {tab === "buyer" && <BuyerTab network={network} wallet={wallet} />}

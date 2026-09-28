@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { RelayerState } from "../hooks/useRelayer";
 import { fetchOrderLog, type RelayerBox } from "../lib/relayerApi";
 import { tamperName } from "../lib/codes";
+import { statusLabel } from "../lib/contracts";
 import { Empty, Panel, Pill, ago, shortHex } from "./ui";
 import { TrackMap } from "./TrackMap";
 
@@ -66,6 +67,7 @@ export function TrackTab({ relayer }: { relayer: RelayerState }) {
     trail.push({ lat: snap.lat_e6 / 1e6, lon: snap.lon_e6 / 1e6 });
   }
 
+  const onChainOrder = snap && snap.orderId > 0 ? relayer.orders.find((o) => o.id === snap.orderId) : undefined;
   const boxFeed = feed.filter((f) => f.boxId === box.label);
   const boxTxs = txs.filter((t) => t.stage !== "submitted").slice(0, 8);
 
@@ -90,6 +92,7 @@ export function TrackTab({ relayer }: { relayer: RelayerState }) {
         <div className="hero-sub">
           {tampered && <Pill tone="solid">Tamper latched</Pill>}
           {!tampered && state === "SEALED" && <span>Sealed and in transit</span>}
+          {onChainOrder && <Pill tone="white">on-chain: {statusLabel(onChainOrder.status)}</Pill>}
           <span className="mono">{snap ? `last seen ${ago(snap.lastSeenAt, now)}` : "no telemetry yet"}</span>
         </div>
       </Panel>

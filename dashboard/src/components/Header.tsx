@@ -19,9 +19,10 @@ interface Props {
   wallet: ReturnType<typeof useWallet>;
   online: boolean;
   connecting?: boolean;
+  relayerChain?: NetworkKey | null;
 }
 
-export function Header({ tab, onTab, networkKey, onNetwork, wallet, online, connecting }: Props) {
+export function Header({ tab, onTab, networkKey, onNetwork, wallet, online, connecting, relayerChain }: Props) {
   const net = NETWORKS[networkKey];
   const wrongChain = wallet.account != null && wallet.chainId != null && wallet.chainId !== net.chainId;
 
@@ -50,6 +51,12 @@ export function Header({ tab, onTab, networkKey, onNetwork, wallet, online, conn
             </button>
           ))}
         </div>
+
+        {relayerChain && relayerChain !== networkKey && (
+          <span className="pill red" title="The dashboard is reading a different chain than the relayer writes to">
+            relayer is on {relayerChain}
+          </span>
+        )}
 
         {networkKey === "mst" && !wallet.account && (
           <button className="btn ghost small" onClick={() => void wallet.switchOrAddNetwork(NETWORKS.mst)}>

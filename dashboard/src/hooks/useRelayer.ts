@@ -39,6 +39,7 @@ const POLL_MS = 3000;
 export function useRelayer() {
   const [boxes, setBoxes] = useState<RelayerBox[]>([]);
   const [orders, setOrders] = useState<RelayerOrder[]>([]);
+  const [chain, setChain] = useState<"local" | "mst" | null>(null);
   const [pollOk, setPollOk] = useState<boolean | null>(null); // null until the first poll answers
   const [sseOpen, setSseOpen] = useState(false);
   const [trails, setTrails] = useState<Record<string, DeviceEvent[]>>({});
@@ -49,7 +50,8 @@ export function useRelayer() {
 
   const refresh = useCallback(async () => {
     try {
-      const [b, o] = await Promise.all([fetchBoxes(), fetchOrders()]);
+      const [b, o, h] = await Promise.all([fetchBoxes(), fetchOrders(), fetch("/api/health").then((r) => r.json())]);
+      if (h?.chain === "local" || h?.chain === "mst") setChain(h.chain);
       setBoxes(b);
       setOrders(o);
       setPollOk(true);
@@ -65,101 +67,122 @@ export function useRelayer() {
   }, [refresh]);
 
   useEffect(() => {
-    const es = new EventSource("/api/stream");
-    const nextId = () => `f${++counter.current}`;
-    const parse = (e: Event) => JSON.parse((e as MessageEvent).data as string);
+    let es: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
 
-    es.onopen = () => setSseOpen(true);
-    es.onerror = () => setSseOpen(false); // EventSource retries on its own
+    const connect = () => {
+      es = new EventSource("/api/stream");
+      const src = es;
+      const nextId = () => `f${++counter.current}`;
+      const parse = (e: Event) => JSON.parse((e as MessageEvent).data as string);
 
-    es.addEventListener("telemetry", (e) => {
-      const ev = parse(e) as DeviceEvent;
-      setTrails((prev) => ({ ...prev, [ev.box_id]: [...(prev[ev.box_id] ?? []), ev].slice(-MAX_TRAIL) }));
-      if (ev.type === "TAMPER") {
-        setTamper((prev) => ({ ...prev, [ev.box_id]: { code: ev.code, orderId: ev.order_id } }));
+      src.onopen = () => setSseOpen(true);
+      src.onerror = () => {
+        setSseOpen(false);
+        // A failed handshake (relayer not up yet, proxy 5xx) leaves the source
+        // CLOSED and browsers never retry it, so reconnect by hand.
+        if (src.readyState === EventSource.CLOSED && !stopped) {
+          src.close();
+          retry = setTimeout(connect, 2000);
+        }
+      };
+
+      src.addEventListener("telemetry", (e) => {
+        const ev = parse(e) as DeviceEvent;
+        setTrails((prev) => ({ ...prev, [ev.box_id]: [...(prev[ev.box_id] ?? []), ev].slice(-MAX_TRAIL) }));
+        if (ev.type === "TAMPER") {
+          setTamper((prev) => ({ ...prev, [ev.box_id]: { code: ev.code, orderId: ev.order_id } }));
+          setFeed((prev) =>
+            [
+              {
+                id: nextId(),
+                at: Date.now(),
+                kind: "tamper" as const,
+                boxId: ev.box_id,
+                orderId: ev.order_id,
+                title: tamperName(ev.code),
+                detail: "box latched TAMPERED",
+              },
+              ...prev,
+            ].slice(0, MAX_FEED),
+          );
+        }
+        if (ev.type === "RESET_DONE") {
+          setTamper((prev) => {
+            const next = { ...prev };
+            delete next[ev.box_id];
+            return next;
+          });
+        }
+        void refresh();
+      });
+
+      src.addEventListener("alert", (e) => {
+        const a = parse(e) as {
+          boxId: string;
+          orderId?: number;
+          code?: number;
+          type: string;
+          message?: string;
+          onChain?: boolean;
+        };
+        const title = a.type === "ALERT" && a.code != null ? alertName(a.code) : a.type;
         setFeed((prev) =>
           [
             {
               id: nextId(),
               at: Date.now(),
-              kind: "tamper" as const,
-              boxId: ev.box_id,
-              orderId: ev.order_id,
-              title: tamperName(ev.code),
-              detail: "box latched TAMPERED",
+              kind: "alert" as const,
+              boxId: a.boxId,
+              orderId: a.orderId,
+              title,
+              detail: a.message,
+              onChain: a.onChain,
             },
             ...prev,
           ].slice(0, MAX_FEED),
         );
-      }
-      if (ev.type === "RESET_DONE") {
-        setTamper((prev) => {
-          const next = { ...prev };
-          delete next[ev.box_id];
-          return next;
-        });
-      }
-      void refresh();
-    });
+      });
 
-    es.addEventListener("alert", (e) => {
-      const a = parse(e) as {
-        boxId: string;
-        orderId?: number;
-        code?: number;
-        type: string;
-        message?: string;
-        onChain?: boolean;
-      };
-      const title = a.type === "ALERT" && a.code != null ? alertName(a.code) : a.type;
-      setFeed((prev) =>
-        [
-          {
-            id: nextId(),
-            at: Date.now(),
-            kind: "alert" as const,
-            boxId: a.boxId,
-            orderId: a.orderId,
-            title,
-            detail: a.message,
-            onChain: a.onChain,
-          },
-          ...prev,
-        ].slice(0, MAX_FEED),
-      );
-    });
+      src.addEventListener("tx", (e) => {
+        const t = parse(e) as {
+          stage: TxItem["stage"];
+          label?: string;
+          fn?: string;
+          hash?: string;
+          explorerUrl?: string | null;
+          error?: string;
+        };
+        setTxs((prev) =>
+          [
+            {
+              id: nextId(),
+              at: Date.now(),
+              stage: t.stage,
+              label: t.label ?? t.fn ?? "transaction",
+              hash: t.hash,
+              explorerUrl: t.explorerUrl,
+              error: t.error,
+            },
+            ...prev,
+          ].slice(0, MAX_FEED),
+        );
+      });
 
-    es.addEventListener("tx", (e) => {
-      const t = parse(e) as {
-        stage: TxItem["stage"];
-        label?: string;
-        fn?: string;
-        hash?: string;
-        explorerUrl?: string | null;
-        error?: string;
-      };
-      setTxs((prev) =>
-        [
-          {
-            id: nextId(),
-            at: Date.now(),
-            stage: t.stage,
-            label: t.label ?? t.fn ?? "transaction",
-            hash: t.hash,
-            explorerUrl: t.explorerUrl,
-            error: t.error,
-          },
-          ...prev,
-        ].slice(0, MAX_FEED),
-      );
-    });
+      src.addEventListener("order", () => void refresh());
 
-    es.addEventListener("order", () => void refresh());
+    };
 
-    return () => es.close();
+    connect();
+    return () => {
+      stopped = true;
+      clearTimeout(retry);
+      es?.close();
+    };
   }, [refresh]);
 
-  return { boxes, orders, connecting: pollOk === null && !sseOpen, online: pollOk === true || sseOpen, trails, tamper, feed, txs, refresh };
+  return { boxes, orders, chain, connecting: pollOk === null && !sseOpen, online: pollOk === true || sseOpen, trails, tamper, feed, txs, refresh };
 }
 
 export type RelayerState = ReturnType<typeof useRelayer>;
