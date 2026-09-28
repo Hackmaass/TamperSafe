@@ -84,7 +84,7 @@ Read this before believing any use case in §6.
 
 | Capability | Status |
 | :--- | :--- |
-| Escrow, courier bond, refund and bond slash, expiry | Built and tested (68 contract tests), on a **local chain**. **Not yet deployed to MST testnet**, so there are no explorer links yet |
+| Escrow, courier bond, refund and bond slash, expiry | Built and tested (68 contract tests). **Deployed to MST testnet** (see the README for addresses and explorer links). An end-to-end order on testnet has not been run yet |
 | Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
 | Hash-chained log with the head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard button compares the relayer's stored head at the anchored sequence with the on-chain head, and it matches. It does **not** rebuild the head from the raw events, so it trusts the relayer's copy. An independent recompute (browser-side) is roadmap |
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data. The wallet flows still need a click-through |

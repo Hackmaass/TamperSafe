@@ -20,7 +20,15 @@ TBD — filled in as `contracts/`, `firmware/`, `relayer/` and `dashboard/` land
 
 ## Contract addresses
 
-TBD — filled in at M6 (MST testnet deploy), with explorer links.
+Deployed to MST Testnet (chain id 91562037), read from `deployments/mst-testnet.json`:
+
+| Contract | Address | Deployment |
+| :--- | :--- | :--- |
+| BoxRegistry | [`0x45fCCe56c139b28655A3b7083f98e41C6c36E04d`](https://testnet.mstscan.com/address/0x45fCCe56c139b28655A3b7083f98e41C6c36E04d) | [deploy tx](https://testnet.mstscan.com/tx/0x3e07dc5011a7d48338aa56d0a848206551d148bce517682c9fdc4edcecef5c0a) |
+| TamperSafeEscrow | [`0xC876A0F58592BE567081a752a0Ad53106EFD1223`](https://testnet.mstscan.com/address/0xC876A0F58592BE567081a752a0Ad53106EFD1223) | [deploy tx](https://testnet.mstscan.com/tx/0xb0f20545dd0bc0e863ef9e6108363b960937b0e52c1c9ea95c9cd9eb1003db65) |
+| TelemetryAnchor | [`0x6D7Ea16170Bd03685Efad614526d9C38849C9a86`](https://testnet.mstscan.com/address/0x6D7Ea16170Bd03685Efad614526d9C38849C9a86) | [deploy tx](https://testnet.mstscan.com/tx/0x42770e1181c22ae4506353356e76c820332449049d169a0dd9bf9ce47c561b7a) |
+
+Relayer oracle (holds `ORACLE_ROLE`): [`0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a`](https://testnet.mstscan.com/address/0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a)
 
 ## Open-source libraries
 
