@@ -1,0 +1,30 @@
+{
+  "chainId": "91562037",
+  "deployedAt": "2026-09-28T21:59:31.597Z",
+  "deployer": "0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a",
+  "relayerOracle": {
+    "address": "0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a",
+    "note": "Address granted ORACLE_ROLE on TamperSafeEscrow and TelemetryAnchor for this network."
+  },
+  "contracts": {
+    "BoxRegistry": {
+      "address": "0x45fCCe56c139b28655A3b7083f98e41C6c36E04d",
+      "deployTxHash": "0x3e07dc5011a7d48338aa56d0a848206551d148bce517682c9fdc4edcecef5c0a"
+    },
+    "TamperSafeEscrow": {
+      "address": "0xC876A0F58592BE567081a752a0Ad53106EFD1223",
+      "deployTxHash": "0xb0f20545dd0bc0e863ef9e6108363b960937b0e52c1c9ea95c9cd9eb1003db65"
+    },
+    "TelemetryAnchor": {
+      "address": "0x6D7Ea16170Bd03685Efad614526d9C38849C9a86",
+      "deployTxHash": "0x42770e1181c22ae4506353356e76c820332449049d169a0dd9bf9ce47c561b7a"
+    }
+  },
+  "boxes": [
+    {
+      "label": "TS-BOX-01",
+      "boxId": "0xcf7303e8395675688c63725cde1abd88783e6fd7a8c16fd2e0ef20a4d3ff6078",
+      "deviceKey": "0x0000000000000000000000000000000000000000"
+    }
+  ]
+}

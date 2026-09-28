@@ -1,7 +1,7 @@
 {
-  "_comment": "Addresses only, never private keys. Filled in by the team during M0 after funding each from https://faucet.mstblockchain.com/. Claude never generates or holds these keys.",
-  "admin": "",
-  "oracleRelayer": "",
+  "_comment": "Addresses only, never private keys. Filled in by the team during M0 after funding each from https://faucet.mstblockchain.com/.",
+  "admin": "0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a",
+  "oracleRelayer": "0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a",
   "buyer": "",
   "seller": "",
   "courier": ""
