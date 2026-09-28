@@ -2494,7 +2494,7 @@
                                                         {
                                                             actionTypeId: s
                                                         } = l,
-                                                        d = (s === p.ActionTypeConsts.PLUGIN_RIVE ? 0 === (l.config ? .target ? .selectorGuids || []).length : H(s)) ? $(s) ? .(t, l) : null,
+                                                        d = (s === p.ActionTypeConsts.PLUGIN_RIVE ? 0 === (l.config?.target?.selectorGuids || []).length : H(s)) ? $(s)?.(t, l) : null,
                                                         f = L({
                                                             element: t,
                                                             actionItem: l,
@@ -2703,7 +2703,7 @@
                             config: r,
                             actionTypeId: a
                         } = i, o = R({
-                            config: r ? .target ? .useEventTarget === !0 && r ? .target ? .objectId == null ? {
+                            config: r?.target?.useEventTarget === !0 && r?.target?.objectId == null ? {
                                 target: u.target,
                                 targets: u.targets
                             } : r,
@@ -2711,7 +2711,7 @@
                             elementApi: h
                         }), l = H(a);
                         o.forEach(r => {
-                            let o = l ? $(a) ? .(r, i) : null;
+                            let o = l ? $(a)?.(r, i) : null;
                             eg({
                                 destination: L({
                                     element: r,
@@ -2798,7 +2798,7 @@
                 } = (0, o.default)(c, `actionLists.${r}`, {});
                 if (!E || !E.length) return !1;
                 a >= E.length && (0, o.default)(f, "config.loop") && (a = 0), 0 === a && g && a++;
-                let m = (0 === a || 1 === a && g) && b(f.action ? .actionTypeId) ? f.config.delay : void 0,
+                let m = (0 === a || 1 === a && g) && b(f.action?.actionTypeId) ? f.config.delay : void 0,
                     y = (0, o.default)(E, [a, "actionItems"], []);
                 if (!y.length || !B(p, s.mediaQueryKey)) return !1;
                 let I = s.hasBoundaryNodes && n ? h.getClosestElement(n, _) : null,
@@ -2818,7 +2818,7 @@
                         elementRoot: E.boundaryMode ? I : null,
                         elementApi: h
                     }).forEach((s, f) => {
-                        let E = p ? $(d) ? .(s, o) : null,
+                        let E = p ? $(d)?.(s, o) : null,
                             g = p ? Q(d)(s, o) : null;
                         v = !0;
                         let y = D({
@@ -2879,7 +2879,7 @@
                     } = E[I] || {},
                     b = h.getRefType(a),
                     v = m.reducedMotion && p.ReducedMotionTypes[o.actionTypeId];
-                if (v && c) switch (y.events[d] ? .eventTypeId) {
+                if (v && c) switch (y.events[d]?.eventTypeId) {
                     case p.EventTypeConsts.MOUSE_MOVE:
                     case p.EventTypeConsts.MOUSE_MOVE_IN_VIEWPORT:
                         t = s;
@@ -4078,10 +4078,10 @@
                     for (let e in i) null == i[e] && (n[e] = 0);
                     return n
                 },
-                d = e => e.value.inputs ? ? {},
+                d = e => e.value.inputs ?? {},
                 f = (e, t) => {
-                    if ((t.config ? .target ? .selectorGuids || []).length > 0) return e;
-                    let n = t ? .config ? .target ? .pluginElement;
+                    if ((t.config?.target?.selectorGuids || []).length > 0) return e;
+                    let n = t?.config?.target?.pluginElement;
                     return n ? o(n) : null
                 },
                 p = (e, {
@@ -4100,9 +4100,9 @@
                         if (e.loaded) n();
                         else {
                             let t = () => {
-                                n(), e ? .off("load", t)
+                                n(), e?.off("load", t)
                             };
-                            e ? .on("load", t)
+                            e?.on("load", t)
                         }
 
                         function n() {
@@ -4110,8 +4110,8 @@
                             if (null != n) {
                                 if (e.isPlaying || e.play(c, !1), r in s || a in s) {
                                     let t = e.layout,
-                                        n = s[r] ? ? t.fit,
-                                        i = s[a] ? ? t.alignment;
+                                        n = s[r] ?? t.fit,
+                                        i = s[a] ?? t.alignment;
                                     (n !== t.fit || i !== t.alignment) && (e.layout = t.copyWith({
                                         fit: n,
                                         alignment: i
@@ -4136,7 +4136,7 @@
                             }
                         }
                     }
-                    o ? .rive ? d(o.rive) : i.setLoadHandler(e, d)
+                    o?.rive ? d(o.rive) : i.setLoadHandler(e, d)
                 },
                 E = (e, t) => null
         },
@@ -4198,7 +4198,7 @@
                 },
                 d = e => e.value,
                 f = (e, t) => {
-                    let n = t ? .config ? .target ? .pluginElement;
+                    let n = t?.config?.target?.pluginElement;
                     return n ? r(n) : null
                 },
                 p = (e, t, n) => {
@@ -5996,7 +5996,7 @@
                     let e = s(T);
                     return e ? [e] : []
                 }
-                let N = (t ? .action ? .config ? .affectedElements ? ? {})[T || v] || {},
+                let N = (t?.action?.config?.affectedElements ?? {})[T || v] || {},
                     R = !!(N.id || N.selector),
                     w = t && d(eI(t.target));
                 if (R ? (a = N.limitAffectedElements, o = w, l = d(N)) : o = l = d({

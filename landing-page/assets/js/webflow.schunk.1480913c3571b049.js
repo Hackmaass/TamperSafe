@@ -27,7 +27,7 @@
                 get: i[r]
             });
             let a = n(7933),
-                s = (e, t) => e.Webflow.require("lottie") ? .lottie.loadAnimation(t),
+                s = (e, t) => e.Webflow.require("lottie")?.lottie.loadAnimation(t),
                 o = e => !!(e.Webflow.env("design") || e.Webflow.env("preview")),
                 l = {
                     Playing: "playing",
@@ -52,7 +52,7 @@
                         let t = this._cache.findIndex(({
                             wrapper: t
                         }) => t === e);
-                        return -1 === t ? null : this._cache[t] ? .instance ? ? null
+                        return -1 === t ? null : this._cache[t]?.instance ?? null
                     }
                 },
                 u = {},
@@ -309,12 +309,12 @@
                             e.forEach(e => {
                                 if (!e.isIntersecting) return;
                                 let t = e.target;
-                                d ? .unobserve(t), g(t) || b(t), I(t)
+                                d?.unobserve(t), g(t) || b(t), I(t)
                             })
                         }, {
                             rootMargin: function() {
                                 let e = navigator.connection;
-                                if (e ? .effectiveType) switch (e.effectiveType) {
+                                if (e?.effectiveType) switch (e.effectiveType) {
                                     case "slow-2g":
                                     case "2g":
                                         return "300% 0%";
@@ -758,7 +758,7 @@
             });
             let a = n(3487);
             async function s(e) {
-                return await fetch(new URL(e, window ? .location ? .href).href).then(e => e.arrayBuffer())
+                return await fetch(new URL(e, window?.location?.href).href).then(e => e.arrayBuffer())
             }
             async function o(e) {
                 return (await new Promise(t => {
@@ -785,7 +785,7 @@
                     if (null == n || null == t.read(`images/${n}`)) return e;
                     let i = n.split(".").pop(),
                         r = await t.readB64(`images/${n}`);
-                    if (i ? .startsWith("data:")) return e.p = i, e.e = 1, e;
+                    if (i?.startsWith("data:")) return e.p = i, e.e = 1, e;
                     switch (i) {
                         case "svg":
                         case "svg+xml":
