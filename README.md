@@ -77,7 +77,7 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 
 | Capability | Status |
 | :--- | :--- |
-| Escrow, courier bond, refund and bond slash, expiry | Built and tested (68 contract tests). **Deployed to MST Testnet** |
+| Escrow, courier bond, refund and bond slash, expiry | Built and tested (70 contract tests). **Deployed to MST Testnet** |
 | Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
 | Hash-chained log with head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard compares the relayer's stored head at the anchored sequence with the on-chain head. It does not rebuild the head from raw events, so it trusts the relayer's copy. An independent recompute is roadmap |
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data, with BridgeKey-first wallet discovery |
@@ -192,7 +192,7 @@ What this aims to prove: a sealed box's lid was opened, it lost power, or it was
 
 | Folder | What |
 | :--- | :--- |
-| `contracts/` | Hardhat 3 + OpenZeppelin v5, solc 0.8.24 (`cancun`). Contracts, 68 tests, deploy script |
+| `contracts/` | Hardhat 3 + OpenZeppelin v5, solc 0.8.24 (`cancun`). Contracts, 70 tests, deploy script |
 | `relayer/` | Node 22 + TypeScript. Device ingest with HMAC and hash-chain checks, chain writer, listener, SSE, sim-box |
 | `dashboard/` | React + Vite + ethers v6. Track, Buyer, Courier, Depot, Evidence |
 | `firmware/` | ESP32-S3 (NEWRRO Neurick) box firmware and bring-up sketches |
