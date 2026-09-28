@@ -115,7 +115,7 @@ Common to all three contracts:
 | Function | Caller | Effect / reverts |
 | :--- | :--- | :--- |
 | `registerBox(bytes32 boxId, address deviceKey, string label)` | `DEFAULT_ADMIN_ROLE` | Adds the box. Reverts `BoxExists` |
-| `setActive(bytes32 boxId, bool active)` | `DEFAULT_ADMIN_ROLE` | Enables or disables the box |
+| `setActive(bytes32 boxId, bool active)` | `DEFAULT_ADMIN_ROLE` | Enables or disables the box. Reverts `BoxUnavailable` if the box was never registered (else an unknown id could be bound, then wiped by a later `registerBox`) |
 | `bind(bytes32 boxId, uint256 orderId)` | `BINDER_ROLE` (the escrow) | Requires the box to be active and free. Reverts `BoxUnavailable` |
 | `unbind(bytes32 boxId)` | `BINDER_ROLE` | Frees the box |
 | `getBox(bytes32 boxId)` | view | — |
@@ -146,7 +146,7 @@ Roles: `DEFAULT_ADMIN_ROLE` (deployer) and `ORACLE_ROLE` (relayer). Inherits `Re
 
 | Function | Caller | From → To | Money |
 | :--- | :--- | :--- | :--- |
-| `createOrder(address seller, int32 destLat, int32 destLon, uint64 deadline) payable → uint256 orderId` | buyer | — → Funded | Holds `msg.value`. Reverts on zero amount, past deadline, or `seller == buyer` |
+| `createOrder(address seller, int32 destLat, int32 destLon, uint64 deadline) payable → uint256 orderId` | buyer | — → Funded | Holds `msg.value`. Reverts on zero amount, past deadline, `seller == buyer` or `seller == address(0)` |
 | `cancelOrder(uint256 id)` | buyer | Funded → Cancelled | amount → buyer |
 | `depositBond() payable` | courier | — | Adds to `bondBalance[courier]` |
 | `withdrawBond(uint256 amt)` | courier | — | Free (unlocked) bond → courier |
@@ -173,7 +173,7 @@ Events:
 - `FundsReleased(id, to, amount, kind)`, where `kind` is `ReleaseKind` (`uint8`: `0 PAYMENT · 1 REFUND · 2 BOND_SLASH`)
 - `BondBpsSet(bps)`, emitted by `setBondBps`
 
-Errors: `InvalidStatus(id, current)`, `NotBuyer()`, `InvalidSeller()` (createOrder: `seller == msg.sender`), `BoxUnavailable(boxId)`, `InsufficientBond(courier, needed, free)`, `DeadlineNotReached()`, `BadDeadline()`, `ZeroAmount()`, `TransferFailed(to)`.
+Errors: `InvalidStatus(id, current)`, `NotBuyer()`, `InvalidSeller()` (createOrder: `seller == msg.sender` or `seller == address(0)`), `BoxUnavailable(boxId)`, `InsufficientBond(courier, needed, free)`, `DeadlineNotReached()`, `BadDeadline()`, `ZeroAmount()`, `TransferFailed(to)`.
 
 Rules:
 - Follow checks → effects → interactions.

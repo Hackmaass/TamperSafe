@@ -76,6 +76,25 @@ describe("BoxRegistry", function () {
       expect((await registry.getBox(BOX_ID)).active).to.equal(true);
     });
 
+    it("reverts BoxUnavailable on an unregistered box, so it can never be bound then re-registered", async function () {
+      const { registry, admin, binder } = await networkHelpers.loadFixture(deployRegistry);
+
+      await expect(registry.connect(admin).setActive(UNKNOWN_BOX_ID, true))
+        .to.be.revertedWithCustomError(registry, "BoxUnavailable")
+        .withArgs(UNKNOWN_BOX_ID);
+      await expect(registry.connect(admin).setActive(UNKNOWN_BOX_ID, false)).to.be.revertedWithCustomError(
+        registry,
+        "BoxUnavailable",
+      );
+
+      // The unregistered box is still unbindable, and stays reading as unregistered.
+      await expect(registry.connect(binder).bind(UNKNOWN_BOX_ID, 1n)).to.be.revertedWithCustomError(
+        registry,
+        "BoxUnavailable",
+      );
+      expect((await registry.getBox(UNKNOWN_BOX_ID)).active).to.equal(false);
+    });
+
     it("reverts when a non-admin sets active state", async function () {
       const { registry, admin, stranger, deviceKey } = await networkHelpers.loadFixture(deployRegistry);
       await registry.connect(admin).registerBox(BOX_ID, deviceKey.address, "TS-BOX-01");

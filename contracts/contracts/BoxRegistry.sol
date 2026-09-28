@@ -51,7 +51,11 @@ contract BoxRegistry is AccessControl {
     }
 
     /// @notice Enables or disables a box. A disabled box cannot be bound.
+    /// Reverts BoxUnavailable for an unregistered box: otherwise an unknown id
+    /// could be activated, bound, and then wiped by a later `registerBox`
+    /// (which still reads `_registered == false`), double-binding the box.
     function setActive(bytes32 boxId, bool active) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!_registered[boxId]) revert BoxUnavailable(boxId);
         _boxes[boxId].active = active;
         emit BoxActiveSet(boxId, active);
     }

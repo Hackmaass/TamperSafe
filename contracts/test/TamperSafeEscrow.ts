@@ -126,6 +126,18 @@ describe("TamperSafeEscrow", function () {
       ).to.be.revertedWithCustomError(escrow, "InvalidSeller");
     });
 
+    it("reverts InvalidSeller when the seller is the zero address (payouts would burn)", async function () {
+      const { escrow, buyer } = await networkHelpers.loadFixture(deployAll);
+      const deadline = BigInt((await networkHelpers.time.latest()) + ONE_HOUR);
+
+      await expect(
+        escrow
+          .connect(buyer)
+          .createOrder(ethers.ZeroAddress, DEST_LAT, DEST_LON, deadline, { value: ethers.parseEther("1") }),
+      ).to.be.revertedWithCustomError(escrow, "InvalidSeller");
+      expect(await escrow.orderCount()).to.equal(0n);
+    });
+
     it("reverts BadDeadline on a past or current-block deadline", async function () {
       const { escrow, buyer, seller } = await networkHelpers.loadFixture(deployAll);
       const now = await networkHelpers.time.latest();

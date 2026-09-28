@@ -118,14 +118,15 @@ contract TamperSafeEscrow is AccessControl, ReentrancyGuard {
     }
 
     /// @notice Buyer opens and funds an order. Reverts on zero value, a
-    /// past/zero deadline, or naming themselves as the seller.
+    /// past/zero deadline, or naming themselves (or the zero address, where
+    /// every payout and bond slash would burn) as the seller.
     function createOrder(address seller, int32 destLat, int32 destLon, uint64 deadline)
         external
         payable
         returns (uint256 orderId)
     {
         if (msg.value == 0) revert ZeroAmount();
-        if (seller == msg.sender) revert InvalidSeller();
+        if (seller == msg.sender || seller == address(0)) revert InvalidSeller();
         if (deadline <= block.timestamp) revert BadDeadline();
 
         orderId = ++orderCount;
