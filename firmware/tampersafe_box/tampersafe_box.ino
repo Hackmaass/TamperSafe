@@ -45,39 +45,11 @@ Newrick nr;
 // doesn't expose.
 Adafruit_SSD1306 display(128, 32, &Wire, -1, 400000, 400000);
 
-// --- Servo angles: CALIBRATED 29-Sep-2026 via bringup/servo_test.
-// The latch is on physical Servo 2. Every call commands all three channels to
-// the SAME angle, exactly as servo_test.ino does, so it works whichever name
-// (S2 / S3 / S4) the library gives the channels.
-#define LOCK_ANGLE          175 // latch closed (calibrated)
-#define UNLOCK_ANGLE         90 // latch open (calibrated)
-#define SERVO_STEP_DELAY_MS  15 // ms per degree step for smooth, controlled motion (~1.3s for 85 deg)
-
-static int currentServoAngle = -1;
-
-static void setServoAngle(int targetAngle, bool smooth = true) {
-  if (targetAngle < 0) targetAngle = 0;
-  if (targetAngle > 180) targetAngle = 180;
-
-  if (!smooth || currentServoAngle < 0) {
-    currentServoAngle = targetAngle;
-    nr.servo((uint8_t)targetAngle, (uint8_t)targetAngle, (uint8_t)targetAngle);
-    return;
-  }
-
-  if (currentServoAngle == targetAngle) {
-    nr.servo((uint8_t)targetAngle, (uint8_t)targetAngle, (uint8_t)targetAngle);
-    return;
-  }
-
-  int step = (targetAngle > currentServoAngle) ? 1 : -1;
-  while (currentServoAngle != targetAngle) {
-    currentServoAngle += step;
-    nr.servo((uint8_t)currentServoAngle, (uint8_t)currentServoAngle, (uint8_t)currentServoAngle);
-    delay(SERVO_STEP_DELAY_MS);
-  }
-}
-
+// --- The latch is LOGICAL in this build ---------------------------------------
+// The box tracks and reports a locked/unlocked state (ctx.lock, the OLED, the
+// dashboard, the events) but does not drive a servo: the motor controller was not
+// reliable, and the sweep blocked the loop that samples the lid sensor. A servo
+// actuator is roadmap. The state machine and the escrow logic are unchanged.
 
 #define BATTERY_MIN_VOLTS 10.5f // docs/HARDWARE.md §5
 
@@ -148,7 +120,7 @@ static bool lidReported = true;      // what the relayer was last told
 static uint8_t lidChangeStreak = 0;
 
 // ---------------------------------------------------------------------------
-// Seal / unlock / reset -- the only places that move the servo or write NVS
+// Seal / unlock / reset -- the only places that change the lock or write NVS
 // `state`. Every one of them writes NVS BEFORE the corresponding event goes
 // to the network task (CLAUDE.md invariant: "Latch before report").
 // ---------------------------------------------------------------------------
@@ -186,7 +158,6 @@ static void attemptSeal(uint32_t orderId, const char *cmdId) {
   ctx.baselineMm = 0;
   nvsSaveBaseline(0);
 
-  setServoAngle(LOCK_ANGLE, true); // smooth close (90 -> 175)
   ctx.lock = 'L';
 
   if (!mpuSetReference()) Serial.println("MPU: no gravity reading at seal -- tilt alerts off for this shipment");
@@ -202,7 +173,6 @@ static void doUnlock(const char *cmdId) {
   // box was already leaving on purpose.
   ctx.state = BoxState::OPEN_AUTHORIZED;
   nvsSaveState("OPEN_AUTHORIZED");
-  setServoAngle(UNLOCK_ANGLE, true); // smooth open (175 -> 90)
   ctx.lock = 'U';
   unlockArmed = false;
   mpuClearReference();
@@ -220,7 +190,6 @@ static void doReset(const char *cmdId) {
   // servo, since IDLE means "ready to be reloaded and re-sealed" and the
   // depot needs physical access either way (whether coming from TAMPERED or
   // OPEN_AUTHORIZED). Flagged for the team to confirm.
-  setServoAngle(UNLOCK_ANGLE, true); // smooth unlock
   ctx.lock = 'U';
   unlockArmed = false;
   mpuClearReference();
@@ -409,16 +378,6 @@ void setup() {
 
   handleBoot();
 
-  // Boot-time servo position matches the post-mapping state: TAMPERED stays
-  // locked, everything else (only IDLE is reachable post-mapping) is
-  // unlocked. See handleBoot()'s switch for why SEALED/OPEN_AUTHORIZED/
-  // ARMING can never survive a reboot as themselves.
-  if (ctx.state == BoxState::TAMPERED) {
-    setServoAngle(LOCK_ANGLE, false); // hold locked on boot
-  } else {
-    setServoAngle(UNLOCK_ANGLE, false); // initial unlocked position on boot
-  }
-
   networkInit(); // starts the core-0 task; safe to start after NVS/state are loaded
 
   emitEvent("BOOT", 0, "");
@@ -508,14 +467,6 @@ void loop() {
   else ledBackground(LED_OFF);
   ledTick();
 
-  // --- Servo: re-send the held angle every 2 s, like bringup/servo_test. The
-  // STM32 holds the last angle, so this is harmless when it is up, and it
-  // recovers a command sent before the STM32 had power or after a brownout.
-  static unsigned long tServo = 0;
-  if (currentServoAngle >= 0 && now - tServo >= 2000) {
-    tServo = now;
-    nr.servo((uint8_t)currentServoAngle, (uint8_t)currentServoAngle, (uint8_t)currentServoAngle);
-  }
 
   // --- MPU6050 (20 Hz).
   if (now - tMpu >= MPU_INTERVAL_MS) {
