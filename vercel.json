@@ -15,8 +15,7 @@
     },
     "landing-page": {
       "root": "landing-page",
-      "framework": null,
-      "outputDirectory": "."
+      "entrypoint": "server.js"
     },
     "relayer": {
       "root": "relayer",
@@ -38,17 +37,15 @@
       }
     },
     {
-      "source": "/landing/",
+      "source": "/landing",
       "destination": {
-        "service": "landing-page",
-        "path": "/index.html"
+        "service": "landing-page"
       }
     },
     {
       "source": "/landing/(.*)",
       "destination": {
-        "service": "landing-page",
-        "path": "/$1"
+        "service": "landing-page"
       }
     },
     {

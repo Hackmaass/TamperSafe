@@ -36,6 +36,10 @@ const server = http.createServer((req, res) => {
     decodedUrl = parsedUrl;
   }
 
+  if (decodedUrl.startsWith('/landing')) {
+    decodedUrl = decodedUrl.slice('/landing'.length);
+  }
+
   if (decodedUrl === '/' || decodedUrl === '') {
     decodedUrl = '/index.html';
   }
@@ -68,3 +72,5 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`TamperSafe landing page running at http://localhost:${PORT}/`);
 });
+
+export default server;
