@@ -7,7 +7,7 @@ import { getEscrowContract, getReadProvider } from "../lib/contracts";
 import { getAbi } from "../lib/deployments";
 import { decodeContractError, formatTMSTC } from "../lib/format";
 import { TxList } from "./TxList";
-import { DEMO } from "../config/demo";
+import { DEMO, roleOf } from "../config/demo";
 import { Empty, Panel } from "./ui";
 
 interface Props {
@@ -127,9 +127,18 @@ export function CourierTab({ network, wallet }: Props) {
   if (!wallet.account) {
     return <Empty>Connect the courier wallet to manage the bond.</Empty>;
   }
+  const wrongAccount = wallet.account.toLowerCase() !== DEMO.courier.toLowerCase();
 
   return (
     <div className="stack">
+      {wrongAccount && (
+        <Panel title="Wrong account">
+          <p className="error" style={{ margin: 0 }}>
+            You are connected as <b>{roleOf(wallet.account) ?? "an unknown account"}</b> ({wallet.account.slice(0, 8)}…). The bond must come from the
+            courier. Switch to the courier account <span className="mono">{DEMO.courier}</span>, refresh this page, and connect again.
+          </p>
+        </Panel>
+      )}
       <div className="grid-2">
         <Panel className="tile" title="Free bond">
           <div className="value">{free != null ? formatTMSTC(free) : "…"}</div>
@@ -149,7 +158,7 @@ export function CourierTab({ network, wallet }: Props) {
               <span>Amount (tMSTC)</span>
               <input value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
             </label>
-            <button className="btn" type="submit">
+            <button className="btn" type="submit" disabled={wrongAccount} title={wrongAccount ? "Switch to the courier account first" : undefined}>
               Deposit bond
             </button>
           </form>

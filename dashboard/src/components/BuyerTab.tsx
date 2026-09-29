@@ -19,7 +19,7 @@ import {
   microdegreesToDegrees,
 } from "../lib/format";
 import { TxList } from "./TxList";
-import { DEMO, defaultDeadline } from "../config/demo";
+import { DEMO, defaultDeadline, roleOf } from "../config/demo";
 import { Empty, Panel, Pill } from "./ui";
 
 interface Props {
@@ -220,9 +220,18 @@ export function BuyerTab({ network, wallet }: Props) {
   if (!wallet.account) {
     return <Empty>Connect a wallet to create and manage orders.</Empty>;
   }
+  const wrongAccount = wallet.account.toLowerCase() !== DEMO.buyer.toLowerCase();
 
   return (
     <div className="stack">
+      {wrongAccount && (
+        <Panel title="Wrong account">
+          <p className="error" style={{ margin: 0 }}>
+            You are connected as <b>{roleOf(wallet.account) ?? "an unknown account"}</b> ({wallet.account.slice(0, 8)}…). Orders must be created by the
+            buyer. In BridgeKey, switch to the buyer account <span className="mono">{DEMO.buyer}</span>, refresh this page, and connect again.
+          </p>
+        </Panel>
+      )}
       <Panel title="New order">
         <form className="form row" onSubmit={submitCreateOrder}>
           <label className="field">
@@ -245,7 +254,7 @@ export function BuyerTab({ network, wallet }: Props) {
             <span>Deadline</span>
             <input type="datetime-local" value={deadlineLocal} onChange={(e) => setDeadlineLocal(e.target.value)} />
           </label>
-          <button className="btn" type="submit">
+          <button className="btn" type="submit" disabled={wrongAccount} title={wrongAccount ? "Switch to the buyer account first" : undefined}>
             Create and fund
           </button>
         </form>

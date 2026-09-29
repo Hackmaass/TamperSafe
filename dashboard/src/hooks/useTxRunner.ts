@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { ContractTransactionResponse } from "ethers";
-import { explorerTxUrl, networkByChainId } from "../config/networks";
+import { explorerTxUrl, networkByChainId, type NetworkConfig } from "../config/networks";
+import { getReadProvider } from "../lib/contracts";
 
 export interface TxEntry {
   id: string;
@@ -19,6 +20,25 @@ export interface TxEntry {
  * linking off the dropdown would produce a dead mstscan.com link for a
  * local tx hash, which ARCHITECTURE.md §10 explicitly forbids.
  */
+/** Poll for the receipt through our own read RPC. The wallet's provider (BridgeKey) is
+ * rate-limited and answers 429 while a transaction that DID mine is still pending, which
+ * used to show as a failure. Errors while polling are treated as blips. */
+async function waitForReceipt(tx: ContractTransactionResponse, network: NetworkConfig | undefined) {
+  if (!network) return tx.wait();
+  const provider = getReadProvider(network);
+  const deadline = Date.now() + 180_000;
+  while (Date.now() < deadline) {
+    try {
+      const receipt = await provider.getTransactionReceipt(tx.hash);
+      if (receipt) return receipt;
+    } catch {
+      // rate limit or network blip: keep polling
+    }
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  throw new Error("Timed out waiting for the transaction to be mined");
+}
+
 export function useTxRunner() {
   const [entries, setEntries] = useState<TxEntry[]>([]);
 
@@ -33,16 +53,17 @@ export function useTxRunner() {
       try {
         const tx = await send();
         let explorerUrl: string | null = null;
+        let actualNetwork: NetworkConfig | undefined;
         try {
           const net = await tx.provider.getNetwork();
-          const actualNetwork = networkByChainId(Number(net.chainId));
+          actualNetwork = networkByChainId(Number(net.chainId));
           if (actualNetwork) explorerUrl = explorerTxUrl(actualNetwork, tx.hash);
         } catch {
           // best-effort only; missing link is not fatal
         }
         setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, hash: tx.hash, explorerUrl } : e)));
 
-        const receipt = await tx.wait();
+        const receipt = await waitForReceipt(tx, actualNetwork);
         if (receipt && receipt.status === 1) {
           setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "confirmed" } : e)));
           return receipt;

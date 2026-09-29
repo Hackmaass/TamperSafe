@@ -42,7 +42,7 @@ export const NETWORKS: Record<NetworkKey, NetworkConfig> = {
   },
 };
 
-export const DEFAULT_NETWORK: NetworkKey = "local";
+export const DEFAULT_NETWORK: NetworkKey = (import.meta.env.VITE_DEFAULT_NETWORK as NetworkKey | undefined) ?? "mst";
 
 export function networkByChainId(chainId: number): NetworkConfig | undefined {
   return Object.values(NETWORKS).find((n) => n.chainId === chainId);
