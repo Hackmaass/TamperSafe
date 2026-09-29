@@ -36,7 +36,7 @@ export function App() {
       <Header tab={tab} onTab={setTab} networkKey={networkKey} onNetwork={setNetworkKey} wallet={wallet} online={relayer.online} connecting={relayer.connecting} relayerChain={relayer.chain} />
       <main className="page">
         {tab === "track" && <TrackTab relayer={relayer} />}
-        {tab === "buyer" && <BuyerTab network={network} wallet={wallet} />}
+        {tab === "buyer" && <BuyerTab network={network} wallet={wallet} relayer={relayer} />}
         {tab === "courier" && <CourierTab network={network} wallet={wallet} />}
         {tab === "depot" && <DepotTab relayer={relayer} account={wallet.account} />}
         {tab === "evidence" && <EvidenceTab network={network} relayer={relayer} />}

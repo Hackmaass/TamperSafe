@@ -1,0 +1,51 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "dashboard": {
+      "root": "dashboard",
+      "framework": "vite",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "relayer",
+          "format": "url",
+          "env": "RELAYER_URL"
+        }
+      ]
+    },
+    "landing-page": {
+      "root": "landing-page",
+      "runtime": "node"
+    },
+    "relayer": {
+      "root": "relayer",
+      "framework": "express"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "relayer"
+      }
+    },
+    {
+      "source": "/landing",
+      "destination": {
+        "service": "landing-page"
+      }
+    },
+    {
+      "source": "/landing/(.*)",
+      "destination": {
+        "service": "landing-page"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "dashboard"
+      }
+    }
+  ]
+}

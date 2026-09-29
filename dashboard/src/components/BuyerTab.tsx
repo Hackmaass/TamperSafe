@@ -18,6 +18,7 @@ import {
   formatTMSTC,
   microdegreesToDegrees,
 } from "../lib/format";
+import type { RelayerState } from "../hooks/useRelayer";
 import { TxList } from "./TxList";
 import { DEMO, defaultDeadline, roleOf } from "../config/demo";
 import { Empty, Panel, Pill } from "./ui";
@@ -25,6 +26,7 @@ import { Empty, Panel, Pill } from "./ui";
 interface Props {
   network: NetworkConfig;
   wallet: ReturnType<typeof useWallet>;
+  relayer: RelayerState;
 }
 
 interface OrderRow {
@@ -47,7 +49,7 @@ function moneyWentTo(order: OnChainOrder): string {
   }
 }
 
-export function BuyerTab({ network, wallet }: Props) {
+export function BuyerTab({ network, wallet, relayer }: Props) {
   const escrowInterface = useMemo(() => new Interface(getAbi("TamperSafeEscrow")), []);
   const { entries, run } = useTxRunner();
 
@@ -56,6 +58,13 @@ export function BuyerTab({ network, wallet }: Props) {
   const [loading, setLoading] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const refresh = useCallback(() => setRefreshTick((t) => t + 1), []);
+
+  // Re-read the chain whenever the relayer reports an order changing status (for
+  // example when the seal lands), so the buttons never act on a stale status.
+  const statusSig = relayer.orders.map((o) => `${o.id}:${o.status}`).join(",");
+  useEffect(() => {
+    refresh();
+  }, [statusSig, refresh]);
 
   useEffect(() => {
     if (!wallet.account) {
@@ -292,7 +301,12 @@ export function BuyerTab({ network, wallet }: Props) {
                       <button className="btn ghost small" disabled={order.status !== 1} onClick={() => void cancelOrder(id)}>
                         Cancel
                       </button>
-                      <button className="btn small" disabled={order.status !== 2} onClick={() => void confirmAndUnlock(id)}>
+                      <button
+                        className="btn small"
+                        disabled={order.status !== 2}
+                        title={order.status === 2 ? "Sign the unlock on-chain" : `Only a sealed (InTransit) order can be unlocked. This one is ${statusLabel(order.status)}.`}
+                        onClick={() => void confirmAndUnlock(id)}
+                      >
                         Confirm and unlock
                       </button>
                     </td>

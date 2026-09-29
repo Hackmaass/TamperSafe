@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build": "echo 'No build required for static landing page'",
     "start": "node server.js",
     "dev": "node server.js"
   }
