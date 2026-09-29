@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
   "services": {
     "dashboard": {
       "root": "dashboard",
@@ -13,22 +14,11 @@
         }
       ]
     },
-    "landing-page": {
-      "root": "landing-page",
-      "entrypoint": "server.js"
-    },
     "relayer": {
       "root": "relayer",
       "framework": "express"
     }
   },
-  "redirects": [
-    {
-      "source": "/landing",
-      "destination": "/landing/",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -37,15 +27,17 @@
       }
     },
     {
-      "source": "/landing",
+      "source": "/dashboard",
       "destination": {
-        "service": "landing-page"
+        "service": "dashboard",
+        "path": "/dashboard.html"
       }
     },
     {
-      "source": "/landing/(.*)",
+      "source": "/dashboard/(.*)",
       "destination": {
-        "service": "landing-page"
+        "service": "dashboard",
+        "path": "/dashboard.html"
       }
     },
     {
