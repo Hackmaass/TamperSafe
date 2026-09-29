@@ -142,6 +142,11 @@ static unsigned long lastBattOkMs = 0;
 #define LID_OPEN_SAMPLES 4
 static uint8_t lidOpenStreak = 0;
 
+// Immediate lid reporting: a change must hold for this many 50 ms samples.
+#define LID_REPORT_SAMPLES 3
+static bool lidReported = true;      // what the relayer was last told
+static uint8_t lidChangeStreak = 0;
+
 // ---------------------------------------------------------------------------
 // Seal / unlock / reset -- the only places that move the servo or write NVS
 // `state`. Every one of them writes NVS BEFORE the corresponding event goes
@@ -452,6 +457,21 @@ void loop() {
       if (++lidOpenStreak >= LID_OPEN_SAMPLES) doTamper(1); // LID_OPENED
     } else {
       lidOpenStreak = 0;
+    }
+
+    // Report a lid change straight away (after a short debounce) instead of
+    // waiting for the next periodic telemetry, so the dashboard reacts at once.
+    if (closed != lidReported) {
+      if (++lidChangeStreak >= LID_REPORT_SAMPLES) {
+        lidReported = closed;
+        lidChangeStreak = 0;
+        if (ctx.state != BoxState::TAMPERED) { // a tamper already sent its own event
+          emitEvent("TELEMETRY", 0, "");
+          networkNotifyPriority();
+        }
+      }
+    } else {
+      lidChangeStreak = 0;
     }
   }
 
