@@ -94,7 +94,7 @@ static const char *tamperCodeName(uint8_t code) {
 // --- Scheduler cadence, per ARCHITECTURE.md §8 --------------------------------
 #define IR_INTERVAL_MS         50   // 20 Hz
 #define MPU_INTERVAL_MS        50   // 20 Hz
-#define RFID_INTERVAL_MS       250  // 4 Hz
+#define RFID_INTERVAL_MS       100  // 10 Hz
 #define SENSORS_INTERVAL_MS    500  // 2 Hz  (nr.updateSensors())
 #define OLED_INTERVAL_MS       500  // 2 Hz
 #define TELEMETRY_SEALED_MS    2000
@@ -478,7 +478,7 @@ void loop() {
     }
   }
 
-  // --- RFID delivery key (4 Hz). Never touches funds: it only gates the physical latch.
+  // --- RFID delivery key (10 Hz). Never touches funds: it only gates the physical latch.
   if (now - tRfid >= RFID_INTERVAL_MS) {
     tRfid = now;
     bool enrolling = enrollUntil != 0;

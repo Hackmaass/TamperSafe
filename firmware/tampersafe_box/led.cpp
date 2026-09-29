@@ -27,6 +27,7 @@ void ledBackground(uint8_t mask, uint16_t blinkMs) {
 void ledFlash(uint8_t mask, uint32_t ms) {
   flashMask = mask;
   flashUntil = millis() + ms;
+  write(mask); // light it now; ledTick keeps it up
 }
 
 void ledTick() {

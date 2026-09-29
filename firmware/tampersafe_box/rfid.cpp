@@ -9,16 +9,11 @@
 #include <MFRC522.h>
 
 #define MAX_UID 10
-#define ABSENT_POLLS 3 // consecutive empty polls before a tag counts as removed
 
 static MFRC522 reader(PIN_RFID_SS, PIN_RFID_RST);
 
 static uint8_t keyUid[MAX_UID];
 static size_t keyLen = 0;
-
-// Presentation state: a tag is classified once, when it arrives.
-static enum { ABSENT, ARRIVED, CLASSIFIED } phase = ABSENT;
-static uint8_t emptyPolls = 0;
 
 // Official delivery key: 20 85 89 56
 static const uint8_t DEFAULT_KEY_UID[4] = { 0x20, 0x85, 0x89, 0x56 };
@@ -42,38 +37,19 @@ bool rfidHasKey() {
   return keyLen != 0;
 }
 
-// Presence is the wake-up command (WUPA), which also reaches a tag halted on a
-// previous poll. The UID read is best-effort: re-reading right after a halt is
-// unreliable on this clone, so a failed read is retried on later polls, with
-// the field power-cycled to reset the tag.
+// One result per tap. PICC_IsNewCardPresent (REQA) only answers a tag in the
+// IDLE state; after a successful read we halt it, so it stays silent until it
+// leaves the field and comes back fresh. A failed UID read simply returns None
+// and is retried on the next poll, so it is never reported as "wrong".
 Tag rfidScan(bool enroll) {
-  byte atqa[2];
-  byte size = sizeof(atqa);
-  bool present = reader.PICC_WakeupA(atqa, &size) == MFRC522::STATUS_OK;
+  if (!reader.PICC_IsNewCardPresent()) return Tag::None;
+  if (!reader.PICC_ReadCardSerial()) return Tag::None;
 
-  if (!present) {
-    if (++emptyPolls >= ABSENT_POLLS) phase = ABSENT;
-    return Tag::None;
-  }
-  emptyPolls = 0;
-  if (phase == CLASSIFIED) {
-    reader.PICC_HaltA(); // keep the tag quiet until it leaves and returns
-    return Tag::None;
-  }
-
-  if (!reader.PICC_ReadCardSerial()) {
-    phase = ARRIVED; // present but unread: try again next poll
-    reader.PCD_AntennaOff();
-    delay(5);
-    reader.PCD_AntennaOn();
-    return Tag::None;
-  }
-
-  phase = CLASSIFIED;
   size_t len = reader.uid.size;
   uint8_t uid[MAX_UID];
   memcpy(uid, reader.uid.uidByte, len);
   reader.PICC_HaltA();
+  reader.PCD_StopCrypto1();
 
   if (enroll) {
     memcpy(keyUid, uid, len);
