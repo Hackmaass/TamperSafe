@@ -1,8 +1,8 @@
 {
-  "_comment": "Addresses only, never private keys. Filled in by the team during M0 after funding each from https://faucet.mstblockchain.com/.",
+  "_comment": "Addresses only, never private keys. MST Testnet demo roles. The oracle/relayer account is kept separate from the buyer on purpose.",
   "admin": "0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a",
   "oracleRelayer": "0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a",
-  "buyer": "",
-  "seller": "",
-  "courier": ""
+  "buyer": "0x73c06dD5d01d0c8B34AA5bE2Cf5EDf59Eb2f51af",
+  "seller": "0x73595081334A18D4298A160b162faB4Fb4B3c85B",
+  "courier": "0x820A3a10239C7c480491b96e7b5232d158BB19C1"
 }
