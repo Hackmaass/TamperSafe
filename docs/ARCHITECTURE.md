@@ -24,7 +24,7 @@ Chain facts, compiler rules and Neurick board facts live in `CLAUDE.md` and the 
 ┌──────────── TamperSafe box ────────────┐
 │ IR (lid)             RFID (key)        │
 │ GPS NEO-6M           MPU6050 (shock)   │
-│ Servo latch (STM32)  OLED (state)      │
+│ Logical latch        OLED (state)      │
 │ ESP32-S3: state machine, NVS latch,    │
 │ hash chain, ring buffer                │
 └───────────────┬────────────────────────┘
@@ -251,16 +251,16 @@ stateDiagram-v2
   BOOT --> TAMPERED: NVS state TAMPERED (stays latched)
   IDLE --> ARMING: cmd SEAL(order_id)
   ARMING --> IDLE: lid open or battery low → SEAL_FAILED
-  ARMING --> SEALED: servo locked, baseline captured → SEALED
+  ARMING --> SEALED: lock set → SEALED
   SEALED --> TAMPERED: LID_OPENED / CONTENTS_DISTURBED
-  SEALED --> OPEN_AUTHORIZED: cmd UNLOCK → servo unlocked → UNLOCKED
+  SEALED --> OPEN_AUTHORIZED: cmd UNLOCK → unlocked → UNLOCKED
   OPEN_AUTHORIZED --> IDLE: cmd RESET
   TAMPERED --> IDLE: cmd RESET (relayer sends only once the order is terminal on chain)
 ```
 
 - **Authorized open vs tamper:** tamper rules run only in `SEALED`. In `OPEN_AUTHORIZED`, lid and contents changes are expected and never raise tamper.
 - **Latch first, then report:** write the new state to NVS *before* sending the TAMPER event.
-- **TAMPERED:** the servo stays locked until RESET. The OLED shows `TAMPERED: <name>` and telemetry continues.
+- **TAMPERED:** the lock stays set until RESET. The OLED shows `TAMPERED: <name>` and telemetry continues.
 - **NVS keys:** `state`, `order_id`, `seq`, `head`, `baseline_mm`, `tamper_code`, `boot_count`.
   - Write `state` immediately on every transition.
   - Write `seq` and `head` on every event generated.

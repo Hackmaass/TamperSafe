@@ -9,7 +9,7 @@ A clean delivery pays the seller. Any tamper refunds the buyer and slashes the c
 | Chain | MST Testnet (chain id 91562037), explorer [testnet.mstscan.com](https://testnet.mstscan.com) |
 | Escrow contract | [`0xC876A0F58592BE567081a752a0Ad53106EFD1223`](https://testnet.mstscan.com/address/0xC876A0F58592BE567081a752a0Ad53106EFD1223) |
 | Wallet | [BridgeKey](https://bridgekey.io), the official MST wallet (preferred), or any EIP-1193 wallet |
-| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, GPS, RC522 RFID delivery key, RGB status LED and a servo latch |
+| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, RC522 RFID delivery key, and RGB status LED. The latch is logical in this build; a servo actuator is roadmap |
 | More | [`pitch.md`](pitch.md) (problem, use cases, business model, limits) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/HARDWARE.md`](docs/HARDWARE.md) |
 
 ---
@@ -44,8 +44,8 @@ Today's fixes each cover one piece. Tamper tape shows a seal broke, but the evid
 
 TamperSafe makes **detection, evidence and settlement one system**. The box that detects a tamper is the same one whose report moves the money, under rules nobody can change after dispatch.
 
-1. **Seal.** At the depot the servo latch locks the box. The buyer's payment is already in escrow and the courier's bond is locked against the shipment.
-2. **Transit.** The box watches its lid (IR), motion and shock (MPU6050), location (GPS). A tamper is latched in the box's non-volatile memory, and a reboot or power loss mid-transit counts as tamper.
+1. **Seal.** At the depot the box locks (a logical latch: it records and reports the locked state; the servo actuator is roadmap). The buyer's payment is already in escrow and the courier's bond is locked against the shipment.
+2. **Transit.** The box watches its lid (IR), and motion and shock (MPU6050); its location is simulated on the dashboard (the box has no GPS). A tamper is latched in the box's non-volatile memory, and a reboot or power loss mid-transit counts as tamper.
 3. **Report.** The box reports over Wi-Fi to a relayer. Every event is hash-chained and authenticated with a per-box secret. The relayer writes state changes to chain and anchors the log head.
 4. **Settle.** The buyer confirms at the doorstep: they sign "Confirm & Unlock" on-chain, which arms the box (blue LED), then tap their RFID delivery key on it. The right key gives a green LED and opens the latch; a wrong tag gives red, the box stays locked and the attempt is logged as evidence. Once it opens, Clean delivery pays the seller. Any tamper refunds the buyer and slashes the courier's bond.
 
@@ -81,10 +81,10 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 | Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
 | Hash-chained log with head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard compares the relayer's stored head at the anchored sequence with the on-chain head. It does not rebuild the head from raw events, so it trusts the relayer's copy. An independent recompute is roadmap |
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data, with BridgeKey-first wallet discovery |
-| Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware |
+| Latch | **Logical in this build.** The box tracks and reports locked/unlocked. The servo actuator was dropped (the motor controller was unreliable) and is roadmap |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and running on the board. Full on-box scenarios with the relayer over Wi-Fi are still being run |
 | IR lid tamper rule, RFID delivery key with LED feedback | Written and flashed. On the bench: the right and wrong tags are told apart (3/3 taps each), the LED colors are correct, and the lid state follows a hand over the IR sensor. The full unlock handshake is not yet run end to end. GPS is dropped for the demo (roadmap) |
-| An end-to-end order on MST Testnet | **Not yet run.** The transaction hashes will be listed below once it is |
+| An end-to-end order on MST Testnet | **Tamper path verified with the real box** (create, seal, lid lifted, refund and bond slash, anchors: hashes below). The delivery path (Confirm & Unlock, right tag) is not yet run on testnet |
 
 **Not built, and not claimed:** temperature or cold chain, contents or weight detection, on-chain device signatures, cellular connectivity, a production bill of materials.
 
@@ -92,8 +92,8 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 
 ```
 ┌─────────────── TamperSafe box ───────────────┐
-│ IR lid   MPU6050 shock/tilt   GPS   RC522 RFID│
-│ Servo latch   OLED                           │
+│ IR lid   MPU6050 shock/tilt   RC522 RFID     │
+│ Logical latch   OLED                         │
 │ ESP32-S3: state machine, NVS tamper latch,   │
 │ hash chain, ring buffer                      │
 └───────────────┬──────────────────────────────┘
@@ -125,7 +125,17 @@ Chain id 91562037. Read from `deployments/mst-testnet.json`; the relayer and das
 
 Relayer oracle (holds `ORACLE_ROLE`): [`0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a`](https://testnet.mstscan.com/address/0xD9D03Eb2bf2658E68aEd101621CFc4A055e0BD7a)
 
-**Settlement-flow transactions (create, seal, tamper or delivery, anchor):** to be listed here after the end-to-end run on testnet. Only real, explorer-resolvable hashes go in this section.
+**Tamper path, run end to end on MST Testnet with the real box (order 2).** Every hash below resolves on the explorer.
+
+| Step | Event | Transaction |
+| :--- | :--- | :--- |
+| Buyer funds the order | `OrderCreated` | [`0xafd5db9e…`](https://testnet.mstscan.com/tx/0xafd5db9ede5cf61dbcdf0feccf2830afd3ed7d987b1bfba8eb14b660c4406fc0) |
+| Relayer seals it into the box, locking the courier bond | `ShipmentSealed` | [`0x6bd4e688…`](https://testnet.mstscan.com/tx/0x6bd4e6880dae945f0cb61314b3cac8590664cdcba17d1f9c1fde8fcb54c020cd) |
+| Log head anchored | `Anchored` | [`0x076870a6…`](https://testnet.mstscan.com/tx/0x076870a671cd777aa251231e3f399843550a6887823ee2afd8be755201bdd0bc) |
+| Lid lifted: tamper reported, buyer refunded, bond slashed to the seller | `TamperDetected` + 2x `FundsReleased` | [`0x45a70361…`](https://testnet.mstscan.com/tx/0x45a70361d9f0b4d4cb71300df6c34b3c51daf6ab610dcae75b4c81063a34924c) |
+| Log head anchored after the tamper | `Anchored` | [`0xf8b8a223…`](https://testnet.mstscan.com/tx/0xf8b8a22365b42f89e7fa9b5c3935557087b859eb34a4b17fbf8f402560c28d08) |
+
+The delivery path (Confirm & Unlock, then the right tag) has not been run on testnet yet, so it is not listed.
 
 ## Getting started
 
@@ -157,7 +167,7 @@ cd dashboard && npm install && RELAYER_URL=http://127.0.0.1:4100 npm run dev
 **Firmware** (Arduino IDE: ESP32S3 Dev Module, Flash 16MB, PSRAM OPI, USB CDC On Boot enabled, 115200 baud)
 1. Install the `Newrick` library (organiser-provided, copy in `docs/neurick/`), Adafruit SSD1306 + GFX, ArduinoJson and MFRC522.
 2. Copy `firmware/tampersafe_box/secrets.example.h` to `secrets.h` and fill in the hotspot, the relayer URL and the box secret (the same value as in `relayer/.env`).
-3. Flash `firmware/tampersafe_box`. The 12 V battery must be on for the servo. Wiring and thresholds are in [`docs/HARDWARE.md`](docs/HARDWARE.md).
+3. Flash `firmware/tampersafe_box`. Wiring and thresholds are in [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
 The demo script, cut-lines and fallback drill are in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
@@ -206,7 +216,7 @@ What this aims to prove: a sealed box's lid was opened, it lost power, or it was
 - **Contracts:** Hardhat 3, `@nomicfoundation/hardhat-toolbox-mocha-ethers`, OpenZeppelin Contracts v5.
 - **Relayer:** Express, ethers v6, `cors`, `dotenv`, `tsx`, TypeScript, Node's built-in `crypto` and `node:test`.
 - **Dashboard:** React, Vite, ethers v6, Leaflet with OpenStreetMap tiles.
-- **Firmware:** `Newrick` (organiser-provided), Adafruit SSD1306 + GFX, MFRC522, TinyGPSPlus, ESP32 core (WiFi, HTTPClient, Preferences/NVS, mbedtls).
+- **Firmware:** `Newrick` (organiser-provided), Adafruit SSD1306 + GFX, MFRC522, ESP32 core (WiFi, HTTPClient, Preferences/NVS, mbedtls).
 - **Landing page:** vendored GSAP, Lenis, Lottie and Webflow runtime scripts (static assets).
 
 ## AI usage

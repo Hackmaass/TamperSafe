@@ -7,7 +7,7 @@
 - M2 (hardware bring-up) and M4's remaining pin-dependent work (RFID driver) are blocked on RFID pins only — IR (CH14/GPIO14, moved off CH15 to free the RFID RST pin) and GPS (CH11/GPIO11) are confirmed, `docs/neurick/Neurick_Manual.pdf` has been copied in and read. Tracks A (contracts) and C (relayer/dashboard) proceed now.
 - **RFID added for the demo (28 Sept):** an MFRC522 reader holds the buyer's delivery key (one enrolled tag). The buyer's on-chain Confirm & Unlock arms the box; tapping the key then opens the latch (green LED), any other tag stays locked (red LED) and raises evidence alert 17 `AUTH_FAILED`. It gates the physical latch only: it never moves funds, triggers a refund or changes a contract — no contract or protocol change. The old package-binding use (code 16) is retired. See `docs/ARCHITECTURE.md` §6 and `docs/HARDWARE.md` §1/§2/§5.
 - **Neurick library source received (28 Sept), copied to `docs/neurick/`.** It's the STM32 command-protocol library (`Newrick.h`/`.cpp`), not a P1 header pinout manual. It appeared to correct an API mismatch: `servo()` takes channels **S1, S2, S4** (no S3) — CLAUDE.md and HARDWARE.md were changed to match, and firmware (`tampersafe_box.ino`, `servo_angles.ino`) currently codes against S1/S2/S4.
-- **Servo channel conflict RESOLVED (29 Sept):** the firmware commands all three servo channels to the same angle (`servo(a, a, a)`, as in `firmware/bringup/servo_test`), so the S3-vs-S4 parameter naming no longer matters. The latch is on physical Servo 2; calibrated LOCK = 180°, UNLOCK = 90°.
+- **Servo dropped (29 Sept):** the motor controller was unreliable and the sweep blocked the lid-sensor loop, so the latch is logical in the demo build (state tracked and reported, no actuator). A servo actuator is roadmap.
 - **Hardware architecture simplified (28 Sept):** Team decision to completely drop the ultrasonic (HC-SR04) and external motion (PIR) sensors. Lid tamper sensing is handled exclusively by the **Infrared obstacle sensor on CH14 (GPIO 14)**. Motion/shock remains with the onboard MPU6050 (0x68).
 - **M1 (contracts) done, reviewed against every invariant, pushed** — 70 tests. **M3's protocol module done** (`relayer/src/protocol.ts` + `relayer/test/vectors.json`), cross-checked independently with `openssl`. **M4's non-pin-dependent firmware done** (skeleton, NVS latch, network task, MPU alerts, servo) — compiles clean, but the 4 on-box scenarios still need confirmed pins and a real box.
 - **Wi-Fi is the only box↔laptop transport, for the demo only** (team confirmed — no USB-serial telemetry path).
@@ -18,7 +18,7 @@
 A tamper-evident delivery box with on-chain escrow. The buyer's payment sits in an MST testnet escrow from dispatch to doorstep.
 
 How it works:
-1. At the depot the box locks itself with a servo latch.
+1. At the depot the box locks itself (a logical latch in the demo build; the servo actuator is roadmap).
 2. In transit it watches:
    - its lid (IR on IO11 / GPIO 11)
    - its motion/shock (onboard MPU6050)

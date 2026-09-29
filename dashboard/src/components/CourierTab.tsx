@@ -139,6 +139,10 @@ export function CourierTab({ network, wallet }: Props) {
           </p>
         </Panel>
       )}
+      <p className="muted" style={{ margin: 0, maxWidth: "70ch" }}>
+        A courier stakes once, when joining the network, and the stake is reused for every shipment. Each seal locks an amount equal to the order value
+        until delivery; a tamper slashes it to the seller.
+      </p>
       <div className="grid-2">
         <Panel className="tile" title="Free bond">
           <div className="value">{free != null ? formatTMSTC(free) : "…"}</div>
@@ -152,14 +156,14 @@ export function CourierTab({ network, wallet }: Props) {
       {loadError && <p className="error">{loadError}</p>}
 
       <div className="grid-2">
-        <Panel title="Deposit">
+        <Panel title="Stake bond">
           <form className="form" onSubmit={deposit}>
             <label className="field">
               <span>Amount (tMSTC)</span>
               <input value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
             </label>
             <button className="btn" type="submit" disabled={wrongAccount} title={wrongAccount ? "Switch to the courier account first" : undefined}>
-              Deposit bond
+              Stake bond
             </button>
           </form>
         </Panel>

@@ -40,8 +40,8 @@ TamperSafe's difference is that **detection, evidence and settlement are one sys
 
 ## 3. How it works (four steps)
 
-1. **Seal.** At the depot the servo latch locks the box. The buyer's payment is already in the escrow contract, and the courier's bond is locked against the shipment.
-2. **Transit.** The box watches its lid (IR sensor), motion and shock (MPU6050), location (GPS). A tamper is latched in the box's own non-volatile memory. A reboot or power loss mid-transit counts as tamper.
+1. **Seal.** At the depot the box locks (a logical latch: it records and reports the locked state; the servo actuator is roadmap). The buyer's payment is already in the escrow contract, and the courier's bond is locked against the shipment.
+2. **Transit.** The box watches its lid (IR sensor), and motion and shock (MPU6050); its location is simulated on the dashboard (the box has no GPS). A tamper is latched in the box's own non-volatile memory. A reboot or power loss mid-transit counts as tamper.
 3. **Report.** The box reports over Wi-Fi to a relayer. Every event is hash-chained and authenticated with a per-box secret. The relayer writes the state change to chain and anchors the log head.
 4. **Settle.** The buyer confirms at the doorstep and the box unlocks. Clean delivery pays the seller. A tamper refunds the buyer and slashes the courier's bond to the seller.
 
@@ -84,11 +84,11 @@ Read this before believing any use case in §6.
 
 | Capability | Status |
 | :--- | :--- |
-| Escrow, courier bond, refund and bond slash, expiry | Built and tested (70 contract tests). **Deployed to MST testnet** (see the README for addresses and explorer links). An end-to-end order on testnet has not been run yet |
+| Escrow, courier bond, refund and bond slash, expiry | Built and tested (70 contract tests). **Deployed to MST testnet** (see the README for addresses and explorer links). The tamper path has been run end to end on testnet with the real box (see the README for the hashes); the delivery path has not |
 | Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
 | Hash-chained log with the head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard button compares the relayer's stored head at the anchored sequence with the on-chain head, and it matches. It does **not** rebuild the head from the raw events, so it trusts the relayer's copy. An independent recompute (browser-side) is roadmap |
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data. The wallet flows still need a click-through |
-| Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware. Firmware wired to it |
+| Latch | **Logical in this build**: the box tracks and reports a locked state. The servo actuator was dropped (the motor controller was unreliable) and is roadmap |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and compiles. The full on-box scenarios have not run |
 | Box to relayer over Wi-Fi | Firmware written. **Never run on hardware yet**: no Wi-Fi credentials are set |
 | IR lid sensor and tamper rule | Rule written in the main firmware (4 open samples while sealed latch `LID_OPENED`). The sensor is on IO11 and the lid state follows a hand over it on the bench. The full sealed-box tamper test has not been run yet |

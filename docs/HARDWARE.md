@@ -12,8 +12,8 @@ Board facts and wiring rules live in `CLAUDE.md` and the `neurick-firmware` skil
 | Motion (PIR) | HC-SR501 | **DROPPED** | — | Dropped for simplicity. Onboard MPU6050 handles shock/tilt if enabled. |
 | IR lid sensor | FC-51 / TCRT5000 | **FC-51 IR obstacle module, plugged into the connector printed IO11 (GPIO 11)** | 3.3 V | Primary physical tamper sensor; senses lid reflection. Idles high, goes low when it sees the lid. The board's printed `IO` numbers are the GPIO numbers; the `CH` names are just connector names. |
 | GPS | u-blox NEO-6M | **Dropped for the demo** | — | It never produced a byte, and its connector (IO11) is now the IR sensor's. It was evidence only and never gated escrow. Roadmap. |
-| Latch servo | MG995 | **MG995 (Port S2)** | 12 V battery | High-torque servo latch. **Calibrated: LOCK = 175°, UNLOCK = 90° (smooth slow motion).** |
-| Box | Cardboard/acrylic | **Physical demo box** | — | IR sensor on rim facing lid underside; servo latch inside. |
+| Latch servo | MG995 | **Not used in this build** | — | Dropped for the demo: the motor controller was unreliable and the sweep blocked the lid-sensor loop. The latch is logical (the box tracks and reports locked/unlocked). Roadmap. |
+| Box | Cardboard/acrylic | **Physical demo box** | — | IR sensor on rim facing lid underside. |
 | RFID reader | RC522 | **RC522 on the extension board's RFID socket** | 3.3 V | SPI on GPIO 3 (SS), 18 (SCK), 17 (MOSI), 16 (MISO). Found by scan and verified: reads a tag UID and detects presence and removal. Version register reads 0x82 (a clone), so the library self-test reports FAIL; that is expected |
 | Optional | LDR + 10 kΩ, microSD card | **LDR** (`sensors.xlsx` #18) and **8 GB Sandisk microSD** (`sensors.xlsx` #1) both confirmed in hand | 3.3 V | Stretch only |
 
@@ -27,7 +27,7 @@ The GPIOs below are **proposed**. They avoid the unavailable pins, the strapping
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **IR lid sensor** | OUT | **GPIO 11** | **IO11** | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. Verified: the lid state follows a hand over the sensor. |
 | **GPS** | — | — | **Dropped** | — | Its connector (IO11) is now the IR sensor's. |
-| **Latch servo** | Signal | STM32 servo **S2** | **Servo 2 port** | 12 V battery | `setServoAngle(LOCK)` / `setServoAngle(UNLOCK)`. All three channels commanded together smoothly. **LOCK = 175°, UNLOCK = 90°** (calibrated 29-Sep-2026). |
+| **Latch** | — | — | — | — | Logical only: the locked/unlocked state is in every event, on the OLED and on the dashboard. No actuator in this build. |
 | **RFID Reader** | SPI | MFRC522 | **RFID socket: SS=GPIO 3, SCK=18, MOSI=17, MISO=16, RST=15** | 3.3 V | The buyer's delivery key (one enrolled tag, other tags wrong). IR moved to CH14, so GPIO 15 is free for the reader's RST. Receiver gain must stay mid-range; max gain saturates this clone. GPIO 3 is a strapping pin but works here. |
 | **Status LED** | Extension-board RGB LED | active-high | **GPIO 5 = red, 6 = green, 7 = blue** | 3.3 V | Off normally. Blue pulse = armed, waiting for the key. Green = key accepted (latch opens). Red = wrong tag (2 s) or a latched tamper (blinking). Cyan = enrolling. |
 | **Onboard LDR** | AO | ADC1 (GPIO 4) | Extension board | 3.3 V | Interior light sensor for box integrity. |
@@ -44,7 +44,7 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 ## 3. Power
 
 - **Sensor load on the header 5 V / 3.3 V rails:** GPS ≈ 45 mA, HC-SR04 ≈ 15 mA, IR ≈ 20 mA. This is sensors only, which is what the rails are for.
-- **Servo:** runs from the Neurick servo port, so the 12 V pack must be ON.
+- **Servo:** not used in this build.
   - Move once to LOCK or UNLOCK, then hold. Avoid repeated re-commanding.
 - **Untethered:** the box must run from the 12 V pack with USB unplugged. With the laptop's USB-C cable in, the ESP32 stays powered, so switching the pack off never produces `POWER_INTERRUPTED`.
 - **Brownout:** a reset mid-transit reads as `POWER_INTERRUPTED` by design, so **a charged pack is a demo requirement**.
@@ -71,7 +71,7 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
   - Keep the package top ≥ 5 cm below the sensor, because HC-SR04 readings are unreliable under ~2–3 cm.
   - A lifted lid makes the reading jump. A removed or swapped package shifts it to the floor or to the new height.
 - **IR:** on the box rim, facing the lid's underside. Lid closed = reflection detected. Tune the module pot so it flips cleanly at about a 5 mm gap.
-- **Servo latch:** on the inner wall. The horn swings under a hook fixed to the lid. Calibrate the LOCK and UNLOCK angles in M2.
+- **Latch:** logical in this build. A servo latch (a horn swinging under a hook fixed to the lid) is roadmap.
 - **Package:** pad it snugly with foam so that carrying the box does not move it (this matters for false tamper, §5).
 - **GPS antenna:** on top of the lid, facing the sky. **Expect no fix indoors at the venue.**
 - **Wiring:** loop the wires to the lid-mounted sensors through the hinge with slack.
@@ -89,7 +89,7 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 | **GPS** | — | Dropped for the demo (see §2) | — |
 | **RFID delivery key** | 4 Hz | A tag is classified once, when it arrives, and only after its UID was read successfully | Key while armed: open latch. Wrong tag while SEALED: ALERT `AUTH_FAILED` (17), evidence only |
 | Battery | 2 Hz | `batteryVolts` < 10.5 V → refuse SEAL, show `LOW BATT` | — |
-| Servo | — | LOCK angle = 175°, UNLOCK angle = 90° (calibrated 29-Sep-2026, smooth slow motion, all three channels commanded together) | — |
+| Servo | — | Dropped for the demo (see §1) | — |
 
 ---
 
@@ -106,7 +106,7 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 
 1. Battery ON. The I2C scan shows `0x08`, `0x3C` and `0x68`.
 2. Each sensor prints sane values on Serial **with Wi-Fi connected** (phone hotspot, 2.4 GHz).
-3. The servo reaches LOCK and UNLOCK. With the latch locked, the lid cannot be lifted.
+3. Seal: the state becomes SEALED (OLED and dashboard) and the lid tamper rule arms.
 4. Seal the box, then walk it around the room for 60 s: **zero** tamper events.
 5. Lift the lid 1 cm: `LID_OPENED` within 300 ms. Remove the package: `CONTENTS_DISTURBED` within 1.5 s.
 6. Enrol the delivery key (hold the board button 2 s in IDLE, tap the tag). Tap it and the wrong tag 10 times each in IDLE: green and red exactly once per tap. Then seal, sign Confirm & Unlock: the LED turns blue, the wrong tag flashes red and stays locked (`AUTH_FAILED` logged, order stays UnlockRequested), the right key flashes green and opens the latch.
