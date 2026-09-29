@@ -15,11 +15,14 @@ export const DEMO = {
 } as const;
 
 /** Which demo role an address plays, for the header label. */
-export function roleOf(address: string | null): "Buyer" | "Courier" | "Seller" | "Relayer" | null {
+export function roleOf(address: string | null): "Buyer" | "Courier" | "Buyer + Courier" | "Seller" | "Relayer" | null {
   if (!address) return null;
   const a = address.toLowerCase();
-  if (a === DEMO.buyer.toLowerCase()) return "Buyer";
-  if (a === DEMO.courier.toLowerCase()) return "Courier";
+  const isBuyer = a === DEMO.buyer.toLowerCase();
+  const isCourier = a === DEMO.courier.toLowerCase();
+  if (isBuyer && isCourier) return "Buyer + Courier"; // the demo uses one wallet for both
+  if (isBuyer) return "Buyer";
+  if (isCourier) return "Courier";
   if (a === DEMO.seller.toLowerCase()) return "Seller";
   if (a === DEMO.oracle.toLowerCase()) return "Relayer";
   return null;

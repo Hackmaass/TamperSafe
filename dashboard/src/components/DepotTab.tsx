@@ -20,7 +20,8 @@ export function DepotTab({ relayer, account }: { relayer: RelayerState; account:
     return <Empty>Relayer offline. Start it (npm start in relayer/) to seal orders and reset boxes.</Empty>;
   }
 
-  const funded = orders.filter((o) => o.status === 1);
+  // Only the demo buyer's orders: an earlier test order from another account must not be sealed by mistake.
+  const funded = orders.filter((o) => o.status === 1 && o.buyer.toLowerCase() === DEMO.buyer.toLowerCase());
   const courierAddr = courier || account || "";
   const freeBoxes = boxes.filter((b) => !b.pendingCommand && (b.state === "IDLE" || b.state === null));
 
