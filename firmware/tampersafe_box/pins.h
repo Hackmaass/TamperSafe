@@ -7,6 +7,9 @@
 
 // --- GPS (u-blox NEO-6M), UART1, listen-only --------------------------------
 #define PIN_GPS_RX 11 // CH11 (module TX -> here)
+// The GPS is listen-only, but UART1 must be given a TX pin explicitly: left as
+// "default" it claims GPIO 17, which is the RFID reader's MOSI line.
+#define PIN_GPS_TX 48 // unused, free header pin
 
 // --- RFID (MFRC522) on the extension board's RFID socket (SPI) --------------
 // Found by scanning the socket's five IO lines (GPIO 15/16/17/18/3) for the

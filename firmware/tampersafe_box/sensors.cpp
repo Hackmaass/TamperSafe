@@ -7,7 +7,7 @@ static TinyGPSPlus gps;
 
 void sensorsInit() {
   pinMode(PIN_IR_LID, INPUT_PULLUP);
-  Serial1.begin(9600, SERIAL_8N1, PIN_GPS_RX, -1);
+  Serial1.begin(9600, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
 }
 
 bool lidClosed() {
