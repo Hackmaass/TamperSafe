@@ -128,6 +128,7 @@ export class BoxNet {
     if (status === 200 && body.ok === true) {
       const ackSeq = Number(body.ack_seq);
       core.ackThrough(ackSeq);
+      if (this.link.state !== "ok") this.log("info", `relayer link OK (POST 200, ack_seq ${ackSeq})`);
       this.link.state = "ok";
       this.link.lastAckSeq = ackSeq;
       this.link.lastError = null;
