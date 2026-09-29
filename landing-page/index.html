@@ -1215,7 +1215,21 @@
                         <tr><td>TelemetryAnchor</td><td class="mono"><a class="ts-link" href="https://testnet.mstscan.com/address/0x6D7Ea16170Bd03685Efad614526d9C38849C9a86" target="_blank" rel="noreferrer">0x6D7Ea16170Bd03685Efad614526d9C38849C9a86</a></td><td>Anchors log heads, records evidence alerts</td></tr>
                     </tbody>
                 </table>
-                <p class="ts-note">Wallet: the dashboard prefers <a class="ts-link" href="https://bridgekey.io" target="_blank" rel="noreferrer">BridgeKey</a>, the official MST wallet, for connect, network switching and signing. Settlement transaction hashes are published in the <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe#contract-addresses-mst-testnet" target="_blank" rel="noreferrer">README</a> once the first end-to-end order has run on testnet.</p>
+                <p class="ts-note">Wallet: the dashboard prefers <a class="ts-link" href="https://bridgekey.io" target="_blank" rel="noreferrer">BridgeKey</a>, the official MST wallet, for connect, network switching and signing. The transaction hashes from a tamper run on the real box are listed in the <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe#contract-addresses-mst-testnet" target="_blank" rel="noreferrer">README</a>.</p>
+            </div>
+        </section>
+
+        <section class="ts-story" id="evidence">
+            <div class="ts-wrap">
+                <p class="ts-eyebrow">On-chain evidence</p>
+                <h2>Every important moment is marked on MST until delivery.</h2>
+                <p class="ts-lede">The box reads its lid, motion, tilt, location, time and signal continuously. Raw readings stay off-chain to keep gas low, and the moments that matter are put on the chain, so the whole journey can be proven afterwards.</p>
+                <div class="ts-grid">
+                    <div class="ts-card"><h3>An anchored log</h3><p>Every reading is hash-chained on the box, and the chain head is anchored on MST periodically and at every key event. Any single reading can be proven against it.</p></div>
+                    <div class="ts-card"><h3>Highlighted events</h3><p>Sharp or high motion, unnatural sustained motion or tilt, a route deviation, a lost signal or a wrong delivery key each become their own on-chain alert. Alerts are evidence; only a tamper moves money.</p></div>
+                    <div class="ts-card"><h3>A stamped delivery</h3><p>The delivery event carries the final log head, the delivery location and whether a GPS fix was present, so the last mile is on the record too.</p></div>
+                </div>
+                <p class="ts-note">Demo build: limited by the components on hand, it shows the lid sensor and tamper, the delivery key, a simulated location and a logical latch, not the full telemetry stream.</p>
             </div>
         </section>
 
@@ -1241,7 +1255,7 @@
                     <li>The depot seal is the trust point: a wrong item packed at origin still passes as clean.</li>
                     <li>The relayer is a trusted oracle. It cannot name a payee, but it could falsely report a tamper. Device-signed events verified on-chain are the fix.</li>
                     <li>Verify log currently compares the relayer's stored log head with the on-chain anchor; an independent recompute is still to come.</li>
-                    <li>Temperature, contents and weight sensing are not built.</li>
+                    <li>This is a demo build: limited by the components on hand, it shows the lid sensor, the delivery key, a simulated location and a logical latch. Temperature, contents and weight sensing are not built.</li>
                 </ul>
                 <p class="ts-note">The full status table, trust model and business model are in <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe/blob/main/pitch.md" target="_blank" rel="noreferrer">pitch.md</a>. Built for the MST Blockchain x NEWRRO Buildathon; AI usage is described in the <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe#ai-usage" target="_blank" rel="noreferrer">README</a>.</p>
             </div>

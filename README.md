@@ -18,15 +18,16 @@ A clean delivery pays the seller. Any tamper refunds the buyer and slashes the c
 
 1. [The problem](#the-problem)
 2. [The solution](#the-solution)
-3. [Why blockchain, and why MST](#why-blockchain-and-why-mst)
-4. [What is built today](#what-is-built-today)
-5. [Architecture](#architecture)
-6. [Contract addresses](#contract-addresses-mst-testnet)
-7. [Getting started](#getting-started)
-8. [Use cases and business model](#use-cases-and-business-model)
-9. [Trust model and limits](#trust-model-and-limits)
-10. [Repository layout](#repository-layout)
-11. [Open-source libraries and AI usage](#open-source-libraries)
+3. [What TamperSafe records](#what-tampersafe-records)
+4. [Why blockchain, and why MST](#why-blockchain-and-why-mst)
+5. [Demo build](#demo-build)
+6. [Architecture](#architecture)
+7. [Contract addresses](#contract-addresses-mst-testnet)
+8. [Getting started](#getting-started)
+9. [Use cases and business model](#use-cases-and-business-model)
+10. [Trust model and limits](#trust-model-and-limits)
+11. [Repository layout](#repository-layout)
+12. [Open-source libraries and AI usage](#open-source-libraries)
 
 ---
 
@@ -60,6 +61,26 @@ TamperSafe makes **detection, evidence and settlement one system**. The box that
 
 **The box is one form, not the whole product.** The settlement and evidence layer is form-agnostic: the same loop of sense, latch, report and settle applies to containers, truck cargo bays and pallets. Only the sensing and latching layer changes per form, and only the parcel box exists today. See [`pitch.md`](pitch.md) section 4.
 
+## What TamperSafe records
+
+The finished product keeps a tamper-evident record of the whole journey and marks the moments that matter on MST until the package is delivered. Lid, motion, tilt, location, time, battery and signal are read continuously. Here is where each kind of reading lives:
+
+- **Every reading is hash-chained on the box.** Each event carries the hash of the one before it, and the chain head is **anchored on MST** periodically and at every key event, until the order settles. Any single reading can later be proven against the anchored head.
+- **Highlighted events are written on-chain individually.** Sharp or high motion, unnatural sustained motion or tilt, a route deviation, a lost signal or a gap in the log, and a wrong delivery key each become their own `Alert` event on MST with an evidence hash, visible in the Evidence tab.
+- **A tamper moves money.** A lid opened in transit or a power cut is reported through the escrow: the buyer is refunded and the courier's bond is slashed.
+- **Delivery is stamped on-chain.** The `Delivered` event carries the final log head, the delivery location and whether a GPS fix was present.
+
+| Signal | Where it lives | Effect |
+| :--- | :--- | :--- |
+| Location, time, battery, signal (every reading) | Hash-chained on the box, head anchored on-chain | Evidence |
+| High or sharp motion (`SHOCK`), unnatural motion or tilt (`TILT`) | Individual on-chain `Alert` | Evidence only |
+| Route deviation, signal lost, log gap | Individual on-chain `Alert` | Evidence only |
+| Wrong delivery key (`AUTH_FAILED`) | Individual on-chain `Alert` | Evidence only |
+| Lid opened, power cut (tamper) | `TamperDetected` through the escrow | Buyer refunded, bond slashed |
+| Delivery | `Delivered` with the final head, location and fix flag | Seller paid |
+
+Alerts are evidence and never move funds; only a tamper does. Raw readings stay off-chain, which keeps gas low, and the anchor is what makes them provable.
+
 ## Why blockchain, and why MST
 
 MST is the settlement and evidence layer, not a bolt-on. The whole problem is that the platform is one of the interested parties, so a database run by that platform cannot be the referee.
@@ -73,7 +94,9 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 
 **BridgeKey.** The dashboard discovers wallets through EIP-6963 and prefers BridgeKey for connect, network switching and signing. It falls back to any other injected EIP-1193 wallet and shows an install prompt if none is found. BridgeKey publishes no dApp-integration docs, so this uses the standard discovery mechanism rather than a vendor-specific object.
 
-## What is built today
+## Demo build
+
+The product above records location, time and motion continuously. **This demo build is limited by the components on hand**, so it does not produce that full stream: it shows the lid sensor and tamper, the delivery key with LED feedback, motion alerts (unreliable on this bench), a **simulated** location on the dashboard, and a logical latch. Route deviation and the full location trail are shown by the dashboard's simulation only.
 
 | Capability | Status |
 | :--- | :--- |
