@@ -20,12 +20,20 @@ static size_t keyLen = 0;
 static enum { ABSENT, ARRIVED, CLASSIFIED } phase = ABSENT;
 static uint8_t emptyPolls = 0;
 
+// Official delivery key: 20 85 89 56
+static const uint8_t DEFAULT_KEY_UID[4] = { 0x20, 0x85, 0x89, 0x56 };
+
 bool rfidInit() {
   SPI.begin(PIN_RFID_SCK, PIN_RFID_MISO, PIN_RFID_MOSI, PIN_RFID_SS);
   reader.PCD_Init();
   // Max gain (48 dB) saturates this clone; mid-range reads reliably.
   reader.PCD_SetAntennaGain(MFRC522::RxGain_avg);
   keyLen = nvsLoadKeyUid(keyUid, sizeof(keyUid));
+  if (keyLen != 4 || memcmp(keyUid, DEFAULT_KEY_UID, 4) != 0) {
+    memcpy(keyUid, DEFAULT_KEY_UID, 4);
+    keyLen = 4;
+    nvsSaveKeyUid(keyUid, keyLen);
+  }
   byte v = reader.PCD_ReadRegister(MFRC522::VersionReg);
   return v != 0x00 && v != 0xFF;
 }

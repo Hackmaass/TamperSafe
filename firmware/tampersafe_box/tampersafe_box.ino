@@ -48,10 +48,36 @@ Adafruit_SSD1306 display(128, 32, &Wire, -1, 400000, 400000);
 // --- Servo angles: CALIBRATED 29-Sep-2026 via bringup/servo_test.
 // The latch is on physical Servo 2. Every call commands all three channels to
 // the SAME angle, exactly as servo_test.ino does, so it works whichever name
-// (S2 / S3 / S4) the library gives the channels -- this closes the S3-vs-S4
-// signature question for this box.
-#define LOCK_ANGLE   180 // latch closed
-#define UNLOCK_ANGLE  90 // latch open
+// (S2 / S3 / S4) the library gives the channels.
+#define LOCK_ANGLE          175 // latch closed (calibrated)
+#define UNLOCK_ANGLE         90 // latch open (calibrated)
+#define SERVO_STEP_DELAY_MS  15 // ms per degree step for smooth, controlled motion (~1.3s for 85 deg)
+
+static int currentServoAngle = -1;
+
+static void setServoAngle(int targetAngle, bool smooth = true) {
+  if (targetAngle < 0) targetAngle = 0;
+  if (targetAngle > 180) targetAngle = 180;
+
+  if (!smooth || currentServoAngle < 0) {
+    currentServoAngle = targetAngle;
+    nr.servo((uint8_t)targetAngle, (uint8_t)targetAngle, (uint8_t)targetAngle);
+    return;
+  }
+
+  if (currentServoAngle == targetAngle) {
+    nr.servo((uint8_t)targetAngle, (uint8_t)targetAngle, (uint8_t)targetAngle);
+    return;
+  }
+
+  int step = (targetAngle > currentServoAngle) ? 1 : -1;
+  while (currentServoAngle != targetAngle) {
+    currentServoAngle += step;
+    nr.servo((uint8_t)currentServoAngle, (uint8_t)currentServoAngle, (uint8_t)currentServoAngle);
+    delay(SERVO_STEP_DELAY_MS);
+  }
+}
+
 
 #define BATTERY_MIN_VOLTS 10.5f // docs/HARDWARE.md §5
 
@@ -155,7 +181,7 @@ static void attemptSeal(uint32_t orderId, const char *cmdId) {
   ctx.baselineMm = 0;
   nvsSaveBaseline(0);
 
-  nr.servo(LOCK_ANGLE, LOCK_ANGLE, LOCK_ANGLE); // calibrated
+  setServoAngle(LOCK_ANGLE, true); // smooth close (90 -> 175)
   ctx.lock = 'L';
 
   if (!mpuSetReference()) Serial.println("MPU: no gravity reading at seal -- tilt alerts off for this shipment");
@@ -171,7 +197,7 @@ static void doUnlock(const char *cmdId) {
   // box was already leaving on purpose.
   ctx.state = BoxState::OPEN_AUTHORIZED;
   nvsSaveState("OPEN_AUTHORIZED");
-  nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
+  setServoAngle(UNLOCK_ANGLE, true); // smooth open (175 -> 90)
   ctx.lock = 'U';
   unlockArmed = false;
   mpuClearReference();
@@ -189,7 +215,7 @@ static void doReset(const char *cmdId) {
   // servo, since IDLE means "ready to be reloaded and re-sealed" and the
   // depot needs physical access either way (whether coming from TAMPERED or
   // OPEN_AUTHORIZED). Flagged for the team to confirm.
-  nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
+  setServoAngle(UNLOCK_ANGLE, true); // smooth unlock
   ctx.lock = 'U';
   unlockArmed = false;
   mpuClearReference();
@@ -383,9 +409,9 @@ void setup() {
   // unlocked. See handleBoot()'s switch for why SEALED/OPEN_AUTHORIZED/
   // ARMING can never survive a reboot as themselves.
   if (ctx.state == BoxState::TAMPERED) {
-    nr.servo(LOCK_ANGLE, LOCK_ANGLE, LOCK_ANGLE); // calibrated
+    setServoAngle(LOCK_ANGLE, false); // hold locked on boot
   } else {
-    nr.servo(UNLOCK_ANGLE, UNLOCK_ANGLE, UNLOCK_ANGLE); // calibrated
+    setServoAngle(UNLOCK_ANGLE, false); // initial unlocked position on boot
   }
 
   networkInit(); // starts the core-0 task; safe to start after NVS/state are loaded
@@ -438,6 +464,17 @@ void loop() {
       ctx.fix = 1;
     } else {
       ctx.fix = 0;
+    }
+  }
+
+  // --- Bench provisioning: type "enroll" on the serial monitor (IDLE only) to
+  // enrol the next tag tapped as the delivery key, without the board button.
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.equalsIgnoreCase("enroll") && ctx.state == BoxState::IDLE && enrollUntil == 0) {
+      enrollUntil = now + ENROLL_WINDOW_MS;
+      Serial.println("RFID: enrolling -- tap the tag that should be the delivery key");
     }
   }
 
