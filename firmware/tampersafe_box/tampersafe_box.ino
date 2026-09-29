@@ -168,9 +168,9 @@ static void attemptSeal(uint32_t orderId, const char *cmdId) {
   // ARCHITECTURE §8: "ARMING --> IDLE: lid open or battery low -> SEAL_FAILED".
   ctx.lid = lidClosed() ? 1 : 0;
   bool batteryFresh = ctx.battValid && (millis() - lastBattOkMs <= BATTERY_FRESH_MS);
-  bool batteryOk = batteryFresh && (nr.batteryVolts >= BATTERY_MIN_VOLTS);
+  bool batteryLow = batteryFresh && (nr.batteryVolts < BATTERY_MIN_VOLTS); // an unreadable battery is not "low"
 
-  if (!batteryOk || ctx.lid == 0) {
+  if (batteryLow || ctx.lid == 0) {
     ctx.state = BoxState::IDLE;
     nvsSaveState("IDLE");
     emitEvent("SEAL_FAILED", 0, cmdId); // SEAL_FAILED is an event, not a persisted state (§6 lists 6 states, not 7)
@@ -499,6 +499,15 @@ void loop() {
   else if (enrollUntil != 0) ledBackground(LED_CYAN);
   else ledBackground(LED_OFF);
   ledTick();
+
+  // --- Servo: re-send the held angle every 2 s, like bringup/servo_test. The
+  // STM32 holds the last angle, so this is harmless when it is up, and it
+  // recovers a command sent before the STM32 had power or after a brownout.
+  static unsigned long tServo = 0;
+  if (currentServoAngle >= 0 && now - tServo >= 2000) {
+    tServo = now;
+    nr.servo((uint8_t)currentServoAngle, (uint8_t)currentServoAngle, (uint8_t)currentServoAngle);
+  }
 
   // --- MPU6050 (20 Hz).
   if (now - tMpu >= MPU_INTERVAL_MS) {

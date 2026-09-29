@@ -18,9 +18,9 @@
 #define PIN_RFID_RST  15
 
 // --- Extension-board RGB LED, active-high (found with bringup/led_test) -------
-#define PIN_LED_R 5
+#define PIN_LED_R 7
 #define PIN_LED_G 6
-#define PIN_LED_B 7
+#define PIN_LED_B 5
 
 // --- Fixed addresses on the shared I2C bus (SDA=8, SCL=9, set by nr.begin()) -
 #define I2C_ADDR_STM32   0x08
