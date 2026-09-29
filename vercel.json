@@ -15,13 +15,21 @@
     },
     "landing-page": {
       "root": "landing-page",
-      "runtime": "node"
+      "framework": null,
+      "outputDirectory": "."
     },
     "relayer": {
       "root": "relayer",
       "framework": "express"
     }
   },
+  "redirects": [
+    {
+      "source": "/landing",
+      "destination": "/landing/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -30,15 +38,17 @@
       }
     },
     {
-      "source": "/landing",
+      "source": "/landing/",
       "destination": {
-        "service": "landing-page"
+        "service": "landing-page",
+        "path": "/index.html"
       }
     },
     {
       "source": "/landing/(.*)",
       "destination": {
-        "service": "landing-page"
+        "service": "landing-page",
+        "path": "/$1"
       }
     },
     {
