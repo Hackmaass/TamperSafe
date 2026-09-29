@@ -29,7 +29,7 @@ The GPIOs below are **proposed**. They avoid the unavailable pins, the strapping
 | **GPS** | — | — | **Dropped** | — | Its connector (IO11) is now the IR sensor's. |
 | **Latch** | — | — | — | — | Logical only: the locked/unlocked state is in every event, on the OLED and on the dashboard. No actuator in this build. |
 | **RFID Reader** | SPI | MFRC522 | **RFID socket: SS=GPIO 3, SCK=18, MOSI=17, MISO=16, RST=15** | 3.3 V | The buyer's delivery key (one enrolled tag, other tags wrong). IR moved to CH14, so GPIO 15 is free for the reader's RST. Receiver gain must stay mid-range; max gain saturates this clone. GPIO 3 is a strapping pin but works here. |
-| **Status LED** | Extension-board RGB LED | active-high | **GPIO 5 = red, 6 = green, 7 = blue** | 3.3 V | Off normally. Blue pulse = armed, waiting for the key. Green = key accepted (latch opens). Red = wrong tag (2 s) or a latched tamper (blinking). Cyan = enrolling. |
+| **Status LED** | Extension-board RGB LED | active-high | **GPIO 5 = blue, 6 = green, 7 = red** | 3.3 V | Off in IDLE. **Red glow = sealed.** **Magenta = the buyer has signed, waiting for the key.** **Green = key accepted, safe to open** (held until Reset). **Three fast red blinks (the "beep") = wrong tag**, then back to the state colour. **Fast red blink = latched tamper.** Cyan = enrolling. |
 | **Onboard LDR** | AO | ADC1 (GPIO 4) | Extension board | 3.3 V | Interior light sensor for box integrity. |
 | **Motion (PIR)** | — | — | **DROPPED** | — | Dropped for simplicity. |
 | **Ultrasonic** | — | — | **DROPPED** | — | Dropped for simplicity. |
@@ -109,5 +109,5 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 3. Seal: the state becomes SEALED (OLED and dashboard) and the lid tamper rule arms.
 4. Seal the box, then walk it around the room for 60 s: **zero** tamper events.
 5. Lift the lid 1 cm: `LID_OPENED` within 300 ms. Remove the package: `CONTENTS_DISTURBED` within 1.5 s.
-6. Enrol the delivery key (hold the board button 2 s in IDLE, tap the tag). Tap it and the wrong tag 10 times each in IDLE: green and red exactly once per tap. Then seal, sign Confirm & Unlock: the LED turns blue, the wrong tag flashes red and stays locked (`AUTH_FAILED` logged, order stays UnlockRequested), the right key flashes green and opens the latch.
+6. Enrol the delivery key (hold the board button 2 s in IDLE, tap the tag). Tap it and the wrong tag 10 times each in IDLE: green and red exactly once per tap. Then seal, sign Confirm & Unlock: the LED turns magenta, the wrong tag blinks red three times and stays locked (`AUTH_FAILED` logged, order stays UnlockRequested), the right key flashes green and opens the latch.
 7. Write the calibrated thresholds and angles back into §5 and commit.

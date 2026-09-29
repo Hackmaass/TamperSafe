@@ -265,7 +265,7 @@ stateDiagram-v2
   - Write `state` immediately on every transition.
   - Write `seq` and `head` on every event generated.
 - **Alerts** (SHOCK, TILT, SENSOR_FAULT, AUTH_FAILED) never change state. `AUTH_FAILED` is evidence, not a tamper signal — it does not gate `reportTamper` or any escrow transition.
-- **Doorstep unlock is two-factor.** The buyer's signed `requestUnlock` produces an UNLOCK command, which only *arms* the box (RAM flag, blue LED, command left unacknowledged). The latch opens when the enrolled delivery key is tapped; the box then emits UNLOCKED with the command id and the relayer calls `confirmDelivery`. A wrong tag leaves the box locked. One key is enrolled by holding the board button in IDLE and tapping the tag; it is stored in NVS, and every other tag is wrong.
+- **Doorstep unlock is two-factor.** The buyer's signed `requestUnlock` produces an UNLOCK command, which only *arms* the box (RAM flag, magenta LED, command left unacknowledged; a sealed box glows red, the right key turns it green, a wrong tag blinks it red). The latch opens when the enrolled delivery key is tapped; the box then emits UNLOCKED with the command id and the relayer calls `confirmDelivery`. A wrong tag leaves the box locked. One key is enrolled by holding the board button in IDLE and tapping the tag; it is stored in NVS, and every other tag is wrong.
 - **Thresholds and sampling rates** are in `docs/HARDWARE.md` §5.
 
 **Two tasks, so the network never blinds the sensors.** An HTTP POST can block for up to 3 s, and a lid lifted and re-closed inside a stalled POST must still latch. The work is split across the two cores:

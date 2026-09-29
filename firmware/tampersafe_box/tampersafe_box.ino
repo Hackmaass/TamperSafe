@@ -320,7 +320,7 @@ static void onTag(Tag tag, bool enrolled) {
   // SEALED
   if (tag == Tag::Key && unlockArmed) {
     Serial.println("RFID: delivery key accepted -- opening");
-    ledFlash(LED_G, 2000);
+    ledFlash(LED_G, 1500);
     doUnlock(armedCmdId);
     strlcpy(ctx.lastHandledCmdId, armedCmdId, sizeof(ctx.lastHandledCmdId));
     networkAckCommandHandled(armedCmdId);
@@ -329,7 +329,7 @@ static void onTag(Tag tag, bool enrolled) {
     ledFlash(LED_B, 600);
   } else {
     Serial.println("RFID: WRONG tag on a sealed box");
-    ledFlash(LED_R, 2000);
+    ledFlash(LED_R, 750, 120); // the "beep": three fast red blinks
     emitAlertEvent(ALERT_AUTH_FAILED);
   }
 }
@@ -460,9 +460,12 @@ void loop() {
     }
   }
 
-  // --- LED: tamper blinks red, armed pulses blue, enrolling is cyan; a scan result flashes over it.
-  if (ctx.state == BoxState::TAMPERED) ledBackground(LED_R, 500);
-  else if (unlockArmed) ledBackground(LED_B, 400);
+  // --- LED background by state; a scan result flashes over it.
+  //   TAMPERED: fast red blink | OPEN_AUTHORIZED: green (safe to open) |
+  //   SEALED: red glow, magenta once the buyer has signed (armed) | enrolling: cyan | else off.
+  if (ctx.state == BoxState::TAMPERED) ledBackground(LED_R, 150);
+  else if (ctx.state == BoxState::OPEN_AUTHORIZED) ledBackground(LED_G);
+  else if (ctx.state == BoxState::SEALED) ledBackground(unlockArmed ? LED_MAGENTA : LED_R);
   else if (enrollUntil != 0) ledBackground(LED_CYAN);
   else ledBackground(LED_OFF);
   ledTick();
