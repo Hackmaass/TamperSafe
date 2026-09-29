@@ -19,6 +19,7 @@ import {
   microdegreesToDegrees,
 } from "../lib/format";
 import { TxList } from "./TxList";
+import { DEMO, defaultDeadline } from "../config/demo";
 import { Empty, Panel, Pill } from "./ui";
 
 interface Props {
@@ -101,11 +102,11 @@ export function BuyerTab({ network, wallet }: Props) {
   }, [network, wallet]);
 
   // --- Create order form state ---
-  const [seller, setSeller] = useState("");
-  const [amount, setAmount] = useState("0.01");
-  const [lat, setLat] = useState("");
-  const [lon, setLon] = useState("");
-  const [deadlineLocal, setDeadlineLocal] = useState("");
+  const [seller, setSeller] = useState<string>(DEMO.seller);
+  const [amount, setAmount] = useState<string>(DEMO.amount);
+  const [lat, setLat] = useState<string>(DEMO.destLat);
+  const [lon, setLon] = useState<string>(DEMO.destLon);
+  const [deadlineLocal, setDeadlineLocal] = useState(defaultDeadline);
   const [formError, setFormError] = useState<string | null>(null);
 
   const submitCreateOrder = useCallback(

@@ -36,8 +36,8 @@ export function decodeContractError(err: unknown, iface: Interface): string {
     message?: string;
     code?: string;
     data?: string;
-    info?: { error?: { data?: string } };
-    error?: { data?: string };
+    info?: { error?: { data?: string; message?: string } };
+    error?: { data?: string; message?: string };
   };
 
   if (anyErr?.code === "ACTION_REJECTED") {
@@ -57,5 +57,8 @@ export function decodeContractError(err: unknown, iface: Interface): string {
     }
   }
 
-  return anyErr?.reason ?? anyErr?.shortMessage ?? anyErr?.message ?? "Transaction failed";
+  // ethers wraps a wallet error it cannot classify as "could not coalesce error"; the wallet's own message is inside.
+  const base = anyErr?.reason ?? anyErr?.shortMessage ?? anyErr?.message ?? "Transaction failed";
+  const inner = anyErr?.info?.error?.message ?? anyErr?.error?.message;
+  return inner && !base.includes(inner) ? `${base}: ${inner}` : base;
 }

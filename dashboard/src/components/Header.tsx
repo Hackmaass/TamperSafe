@@ -1,5 +1,6 @@
 import { NETWORKS, type NetworkKey } from "../config/networks";
 import type { useWallet } from "../hooks/useWallet";
+import { roleOf } from "../config/demo";
 
 export type TabKey = "track" | "buyer" | "courier" | "depot" | "evidence";
 
@@ -71,7 +72,7 @@ export function Header({ tab, onTab, networkKey, onNetwork, wallet, online, conn
             </button>
           ) : (
             <span className="pill white mono" title={`Connected with ${wallet.walletName ?? "wallet"}`}>
-              {wallet.walletName ? `${wallet.walletName} · ` : ""}
+              {roleOf(wallet.account) ?? wallet.walletName ?? "wallet"} · 
               {wallet.account.slice(0, 6)}…{wallet.account.slice(-4)}
             </span>
           )

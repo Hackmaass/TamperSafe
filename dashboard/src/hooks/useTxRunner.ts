@@ -49,6 +49,7 @@ export function useTxRunner() {
         }
         throw new Error("Transaction reverted");
       } catch (err) {
+        console.error("[tx failed]", label, err);
         const message = decodeError ? decodeError(err) : err instanceof Error ? err.message : String(err);
         setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "failed", error: message } : e)));
         throw err;

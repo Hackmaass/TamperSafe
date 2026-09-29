@@ -7,10 +7,11 @@ import type { RelayerState } from "../hooks/useRelayer";
 import { resetBox, sealOrder, setGpsSim } from "../lib/relayerApi";
 import { formatTMSTC } from "../lib/format";
 import { Empty, Panel, Pill, ago, shortHex } from "./ui";
+import { DEMO } from "../config/demo";
 
 export function DepotTab({ relayer, account }: { relayer: RelayerState; account: string | null }) {
   const { boxes, orders, online, refresh } = relayer;
-  const [courier, setCourier] = useState("");
+  const [courier, setCourier] = useState<string>(DEMO.courier); // always the courier, never whichever wallet is connected
   const [pickBox, setPickBox] = useState<Record<number, string>>({});
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);

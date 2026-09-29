@@ -7,6 +7,7 @@ import { getEscrowContract, getReadProvider } from "../lib/contracts";
 import { getAbi } from "../lib/deployments";
 import { decodeContractError, formatTMSTC } from "../lib/format";
 import { TxList } from "./TxList";
+import { DEMO } from "../config/demo";
 import { Empty, Panel } from "./ui";
 
 interface Props {
@@ -59,7 +60,7 @@ export function CourierTab({ network, wallet }: Props) {
     }
   }, [network, wallet]);
 
-  const [depositAmount, setDepositAmount] = useState("0.01");
+  const [depositAmount, setDepositAmount] = useState<string>(DEMO.bond);
   const [withdrawAmount, setWithdrawAmount] = useState("0.01");
   const [formError, setFormError] = useState<string | null>(null);
 
