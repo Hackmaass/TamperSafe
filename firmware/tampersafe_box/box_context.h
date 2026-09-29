@@ -34,7 +34,7 @@ struct BoxContext {
   int32_t distMm = 0;       // always 0 (no ultrasonic); kept because it is in the canonical event
   uint8_t lid = 1;          // 1 closed, 0 open (IR sensor)
   int32_t lat_e6 = 0, lon_e6 = 0;
-  uint8_t fix = 0;          // 1 while GPS has a valid fix under 5 s old
+  uint8_t fix = 0;          // always 0: GPS is dropped for the demo (kept: it is in the canonical event)
 
   uint32_t ts = 0;          // unix seconds from NTP, 0 until synced (network task sets this)
 

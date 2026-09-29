@@ -20,9 +20,9 @@ A tamper-evident delivery box with on-chain escrow. The buyer's payment sits in 
 How it works:
 1. At the depot the box locks itself with a servo latch.
 2. In transit it watches:
-   - its lid (IR on CH14)
+   - its lid (IR on IO11 / GPIO 11)
    - its motion/shock (onboard MPU6050)
-   - its location (GPS on CH11)
+   - (its location via GPS is dropped for the demo: the IO11 connector is now the IR sensor's)
    - the buyer at the door (RFID delivery key)
 3. It reports to a laptop relayer, which writes state changes to chain.
 4. Settlement:

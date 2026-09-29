@@ -83,7 +83,7 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data, with BridgeKey-first wallet discovery |
 | Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and running on the board. Full on-box scenarios with the relayer over Wi-Fi are still being run |
-| IR lid tamper rule, RFID delivery key with LED feedback, GPS | Written and flashed. The RC522 reads tags on the bench and the LED pins are mapped. The full unlock handshake is not yet run end to end. GPS reports no data yet |
+| IR lid tamper rule, RFID delivery key with LED feedback | Written and flashed. On the bench: the right and wrong tags are told apart (3/3 taps each), the LED colors are correct, and the lid state follows a hand over the IR sensor. The full unlock handshake is not yet run end to end. GPS is dropped for the demo (roadmap) |
 | An end-to-end order on MST Testnet | **Not yet run.** The transaction hashes will be listed below once it is |
 
 **Not built, and not claimed:** temperature or cold chain, contents or weight detection, on-chain device signatures, cellular connectivity, a production bill of materials.
@@ -155,7 +155,7 @@ cd dashboard && npm install && RELAYER_URL=http://127.0.0.1:4100 npm run dev
 4. Get tMSTC from the [MST faucet](https://faucet.masterstroke.academy). The buyer and courier accounts each need some, and the courier's bond must be at least the order amount.
 
 **Firmware** (Arduino IDE: ESP32S3 Dev Module, Flash 16MB, PSRAM OPI, USB CDC On Boot enabled, 115200 baud)
-1. Install the `Newrick` library (organiser-provided, copy in `docs/neurick/`), Adafruit SSD1306 + GFX, ArduinoJson, MFRC522 and TinyGPSPlus.
+1. Install the `Newrick` library (organiser-provided, copy in `docs/neurick/`), Adafruit SSD1306 + GFX, ArduinoJson and MFRC522.
 2. Copy `firmware/tampersafe_box/secrets.example.h` to `secrets.h` and fill in the hotspot, the relayer URL and the box secret (the same value as in `relayer/.env`).
 3. Flash `firmware/tampersafe_box`. The 12 V battery must be on for the servo. Wiring and thresholds are in [`docs/HARDWARE.md`](docs/HARDWARE.md).
 

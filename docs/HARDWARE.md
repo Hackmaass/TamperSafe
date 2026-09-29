@@ -10,9 +10,9 @@ Board facts and wiring rules live in `CLAUDE.md` and the `neurick-firmware` skil
 | :--- | :--- | :--- | :--- | :--- |
 | Ultrasonic | HC-SR04 | **DROPPED** | — | Dropped for simplicity; lid tamper is handled purely by the IR sensor. |
 | Motion (PIR) | HC-SR501 | **DROPPED** | — | Dropped for simplicity. Onboard MPU6050 handles shock/tilt if enabled. |
-| IR lid sensor | FC-51 / TCRT5000 | **FC-51 IR obstacle module (CH14 / GPIO 14)** | 3.3 V | Primary physical tamper sensor; senses lid reflection. |
-| GPS | u-blox NEO-6M | **NEO-6M (CH11)** | 3.3–5 V | Evidence only. |
-| Latch servo | MG995 | **MG995 (Port S2)** | 12 V battery | High-torque servo latch. **Calibrated: LOCK = 180°, UNLOCK = 90°.** |
+| IR lid sensor | FC-51 / TCRT5000 | **FC-51 IR obstacle module, plugged into the connector printed IO11 (GPIO 11)** | 3.3 V | Primary physical tamper sensor; senses lid reflection. Idles high, goes low when it sees the lid. The board's printed `IO` numbers are the GPIO numbers; the `CH` names are just connector names. |
+| GPS | u-blox NEO-6M | **Dropped for the demo** | — | It never produced a byte, and its connector (IO11) is now the IR sensor's. It was evidence only and never gated escrow. Roadmap. |
+| Latch servo | MG995 | **MG995 (Port S2)** | 12 V battery | High-torque servo latch. **Calibrated: LOCK = 175°, UNLOCK = 90° (smooth slow motion).** |
 | Box | Cardboard/acrylic | **Physical demo box** | — | IR sensor on rim facing lid underside; servo latch inside. |
 | RFID reader | RC522 | **RC522 on the extension board's RFID socket** | 3.3 V | SPI on GPIO 3 (SS), 18 (SCK), 17 (MOSI), 16 (MISO). Found by scan and verified: reads a tag UID and detects presence and removal. Version register reads 0x82 (a clone), so the library self-test reports FAIL; that is expected |
 | Optional | LDR + 10 kΩ, microSD card | **LDR** (`sensors.xlsx` #18) and **8 GB Sandisk microSD** (`sensors.xlsx` #1) both confirmed in hand | 3.3 V | Stretch only |
@@ -25,9 +25,9 @@ The GPIOs below are **proposed**. They avoid the unavailable pins, the strapping
 
 | Function | Module pin | ESP32-S3 GPIO | Extension / P1 Pin | Supply | Level handling |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **IR lid sensor** | OUT | **GPIO 14** | **CH14** | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. |
-| **GPS → ESP (UART1 RX)** | TX | **GPIO 11** | **CH11** (Header Pin 28) | 3.3 V / 5 V | Direct if TX ≤ 3.3 V. Evidence-only. |
-| **Latch servo** | Signal | STM32 servo **S2** | **Servo 2 port** | 12 V battery | `nr.servo(LOCK, LOCK, LOCK)` / `nr.servo(UNLOCK, UNLOCK, UNLOCK)`. All three channels commanded together. **LOCK = 180°, UNLOCK = 90°** (calibrated 29-Sep-2026). |
+| **IR lid sensor** | OUT | **GPIO 11** | **IO11** | 3.3 V | Direct. Primary physical tamper sensor; detects lid opening reflection. Verified: the lid state follows a hand over the sensor. |
+| **GPS** | — | — | **Dropped** | — | Its connector (IO11) is now the IR sensor's. |
+| **Latch servo** | Signal | STM32 servo **S2** | **Servo 2 port** | 12 V battery | `setServoAngle(LOCK)` / `setServoAngle(UNLOCK)`. All three channels commanded together smoothly. **LOCK = 175°, UNLOCK = 90°** (calibrated 29-Sep-2026). |
 | **RFID Reader** | SPI | MFRC522 | **RFID socket: SS=GPIO 3, SCK=18, MOSI=17, MISO=16, RST=15** | 3.3 V | The buyer's delivery key (one enrolled tag, other tags wrong). IR moved to CH14, so GPIO 15 is free for the reader's RST. Receiver gain must stay mid-range; max gain saturates this clone. GPIO 3 is a strapping pin but works here. |
 | **Status LED** | Extension-board RGB LED | active-high | **GPIO 5 = red, 6 = green, 7 = blue** | 3.3 V | Off normally. Blue pulse = armed, waiting for the key. Green = key accepted (latch opens). Red = wrong tag (2 s) or a latched tamper (blinking). Cyan = enrolling. |
 | **Onboard LDR** | AO | ADC1 (GPIO 4) | Extension board | 3.3 V | Interior light sensor for box integrity. |
@@ -82,14 +82,14 @@ GPIO 12–18 are ADC2. They work as digital pins with Wi-Fi on, and only the str
 
 | Signal | Sampling | Rule | Result |
 | :--- | :--- | :--- | :--- |
-| **IR lid (CH15)** | 20 Hz | Lid reads open for 4 consecutive samples (200 ms) in SEALED | TAMPER `LID_OPENED` (1) |
+| **IR lid (IO11)** | 20 Hz | Lid reads open for 4 consecutive samples (200 ms) in SEALED | TAMPER `LID_OPENED` (1) |
 | **Boot check** | — | NVS state is SEALED at boot | TAMPER `POWER_INTERRUPTED` (3) |
 | **Shock** | 20 Hz | `abs(accel) > 2.5 g`, at most 1 per 10 s | ALERT `SHOCK` (10) |
 | **Tilt** | 20 Hz | Tilt > 60° for 3 s | ALERT `TILT` (11) |
-| **GPS** | every loop | Valid when TinyGPS location is valid and its age < 5 s | Evidence only |
+| **GPS** | — | Dropped for the demo (see §2) | — |
 | **RFID delivery key** | 4 Hz | A tag is classified once, when it arrives, and only after its UID was read successfully | Key while armed: open latch. Wrong tag while SEALED: ALERT `AUTH_FAILED` (17), evidence only |
 | Battery | 2 Hz | `batteryVolts` < 10.5 V → refuse SEAL, show `LOW BATT` | — |
-| Servo | — | LOCK angle = 180°, UNLOCK angle = 90° (calibrated 29-Sep-2026, all three channels commanded together) | — |
+| Servo | — | LOCK angle = 175°, UNLOCK angle = 90° (calibrated 29-Sep-2026, smooth slow motion, all three channels commanded together) | — |
 
 ---
 

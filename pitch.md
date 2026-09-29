@@ -91,9 +91,9 @@ Read this before believing any use case in §6.
 | Servo latch (LOCK 180°, UNLOCK 90°) | Calibrated on the hardware. Firmware wired to it |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and compiles. The full on-box scenarios have not run |
 | Box to relayer over Wi-Fi | Firmware written. **Never run on hardware yet**: no Wi-Fi credentials are set |
-| IR lid sensor and tamper rule | Rule written in the main firmware (4 open samples while sealed latch `LID_OPENED`). The sensor is on CH14. The cover-and-uncover bench test has not been done yet |
+| IR lid sensor and tamper rule | Rule written in the main firmware (4 open samples while sealed latch `LID_OPENED`). The sensor is on IO11 and the lid state follows a hand over it on the bench. The full sealed-box tamper test has not been run yet |
 | RFID delivery key (RC522) + RGB LED | The buyer signs Confirm & Unlock on-chain, which arms the box (blue). Tapping the enrolled key gives green and opens the latch; any other tag gives red, stays locked and logs evidence alert 17 `AUTH_FAILED`. The key never moves funds. Written and flashed; the reader and LED work on the bench. The full handshake with the relayer has not been run yet. The static tag UID is a demo credential and is cloneable, so production would use a challenge-response (phone NFC or a signed nonce) |
-| GPS | **Not yet integrated**: the driver is still a stub. It will be evidence only and report `NO_FIX` indoors |
+| GPS | **Dropped for the demo.** It never produced data and its connector is now the IR sensor's. It would be evidence only, and is roadmap |
 | Runs without hardware (sim-box) and without testnet (`CHAIN=local`) | Built. This is the fallback if the box misbehaves on stage |
 
 **Not built. Do not claim:**

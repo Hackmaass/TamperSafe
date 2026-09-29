@@ -1,6 +1,6 @@
 // TamperSafe box firmware -- main sketch.
 //
-// A sealed box watches its lid (IR), shock/tilt (MPU6050), position (GPS) and
+// A sealed box watches its lid (IR), shock/tilt (MPU6050) and
 // and the buyer's RFID delivery key, latches any tamper in NVS before reporting it, and
 // reports hash-chained events to the relayer over Wi-Fi. See
 // docs/ARCHITECTURE.md §8-9 and docs/HARDWARE.md.
@@ -290,10 +290,10 @@ static void reportStatus() {
   // boot-time print -- the CDC Serial Monitor often attaches after that
   // first print has already scrolled past, so PASS/FAIL needs to stay
   // visible on both Serial and the OLED for as long as the box is on.
-  Serial.printf("[state=%s] order=%lu seq=%lu batt=%s wifi=%s lock=%c lid=%s gps=%s key=%s accel=%ldmg tilt=%ld selftest=%s\n",
+  Serial.printf("[state=%s] order=%lu seq=%lu batt=%s wifi=%s lock=%c lid=%s key=%s accel=%ldmg tilt=%ld selftest=%s\n",
                 boxStateName(ctx.state), (unsigned long)ctx.orderId, (unsigned long)ctx.seq,
                 ctx.battValid ? String(nr.batteryVolts, 2).c_str() : "?",
-                wifiOk ? "OK" : "--", ctx.lock, ctx.lid ? "closed" : "OPEN", ctx.fix ? "fix" : (gpsHeard() ? "nofix" : "silent"),
+                wifiOk ? "OK" : "--", ctx.lock, ctx.lid ? "closed" : "OPEN",
                 unlockArmed ? "armed" : (rfidHasKey() ? "key" : "none"), (long)ctx.accelMg, (long)ctx.tiltDeg, g_selfTestOk ? "PASS" : "FAIL");
 
   // 128x32 at text size 1 = 21 chars/row, 4 rows (y=0/8/16/24). Wrap is
@@ -452,18 +452,6 @@ void loop() {
       if (++lidOpenStreak >= LID_OPEN_SAMPLES) doTamper(1); // LID_OPENED
     } else {
       lidOpenStreak = 0;
-    }
-  }
-
-  // --- GPS (every loop): evidence only, never gates escrow.
-  {
-    int32_t lat, lon;
-    if (gpsPoll(&lat, &lon)) {
-      ctx.lat_e6 = lat;
-      ctx.lon_e6 = lon;
-      ctx.fix = 1;
-    } else {
-      ctx.fix = 0;
     }
   }
 
