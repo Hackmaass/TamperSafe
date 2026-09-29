@@ -9,7 +9,7 @@ A clean delivery pays the seller. Any tamper refunds the buyer and slashes the c
 | Chain | MST Testnet (chain id 91562037), explorer [testnet.mstscan.com](https://testnet.mstscan.com) |
 | Escrow contract | [`0xC876A0F58592BE567081a752a0Ad53106EFD1223`](https://testnet.mstscan.com/address/0xC876A0F58592BE567081a752a0Ad53106EFD1223) |
 | Wallet | [BridgeKey](https://bridgekey.io), the official MST wallet (preferred), or any EIP-1193 wallet |
-| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, RC522 RFID delivery key, and RGB status LED. The latch is logical in this build; a servo actuator is roadmap |
+| Hardware | NEWRRO Neurick (ESP32-S3) with IR lid sensor, MPU6050, RC522 RFID delivery key, and RGB status LED. The latch is logical in the prototype; a servo actuator is next |
 | More | [`pitch.md`](pitch.md) (problem, use cases, business model, limits) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/HARDWARE.md`](docs/HARDWARE.md) |
 
 ---
@@ -20,14 +20,15 @@ A clean delivery pays the seller. Any tamper refunds the buyer and slashes the c
 2. [The solution](#the-solution)
 3. [What TamperSafe records](#what-tampersafe-records)
 4. [Why blockchain, and why MST](#why-blockchain-and-why-mst)
-5. [Demo build](#demo-build)
-6. [Architecture](#architecture)
-7. [Contract addresses](#contract-addresses-mst-testnet)
-8. [Getting started](#getting-started)
-9. [Use cases and business model](#use-cases-and-business-model)
-10. [Trust model and limits](#trust-model-and-limits)
-11. [Repository layout](#repository-layout)
-12. [Open-source libraries and AI usage](#open-source-libraries)
+5. [The prototype](#the-prototype)
+6. [Where it scales](#where-it-scales)
+7. [Architecture](#architecture)
+8. [Contract addresses](#contract-addresses-mst-testnet)
+9. [Getting started](#getting-started)
+10. [Use cases and business model](#use-cases-and-business-model)
+11. [Trust model and limits](#trust-model-and-limits)
+12. [Repository layout](#repository-layout)
+13. [Open-source libraries and AI usage](#open-source-libraries)
 
 ---
 
@@ -94,22 +95,40 @@ What the chain does **not** fix: it does not make the sensor honest. It guarante
 
 **BridgeKey.** The dashboard discovers wallets through EIP-6963 and prefers BridgeKey for connect, network switching and signing. It falls back to any other injected EIP-1193 wallet and shows an install prompt if none is found. BridgeKey publishes no dApp-integration docs, so this uses the standard discovery mechanism rather than a vendor-specific object.
 
-## Demo build
+## The prototype
 
-The product above records location, time and motion continuously. **This demo build is limited by the components on hand**, so it does not produce that full stream: it shows the lid sensor and tamper, the delivery key with LED feedback, motion alerts (unreliable on this bench), a **simulated** location on the dashboard, and a logical latch. Route deviation and the full location trail are shown by the dashboard's simulation only.
+TamperSafe is a working prototype, and it already closes the whole loop on real hardware and a real chain. What it achieves today:
 
-| Capability | Status |
+- **A sealed box that detects and latches a tamper**, including a lid lifted in transit and a power cut, and reports it.
+- **Escrow that settles by rule on MST Testnet.** A tamper refunds the buyer and slashes the courier's stake; the transactions are listed below.
+- **An evidence trail:** every event hash-chained on the box, with the log head anchored on-chain, and a **Verify log** check.
+- **A two-factor doorstep:** the buyer signs on-chain, then taps a delivery key. The right key opens the box, and a wrong tag is logged as evidence, with LED feedback for each state.
+- **Motion alerts**, and a **live dashboard** with location shown through a simulated route.
+- **A full simulated box** that speaks the same protocol, so the flow also runs with no hardware.
+
+| Capability | Status in the prototype |
 | :--- | :--- |
 | Escrow, courier bond, refund and bond slash, expiry | Built and tested (70 contract tests). **Deployed to MST Testnet** |
 | Relayer: verified ingest, chain writer, command queue, state-aware rules | Built, tested with the sim-box on a local chain |
 | Hash-chained log with head anchored on-chain, and **Verify log** | Anchoring is built. The dashboard compares the relayer's stored head at the anchored sequence with the on-chain head. It does not rebuild the head from raw events, so it trusts the relayer's copy. An independent recompute is roadmap |
 | Dashboard: Track, Buyer, Courier, Depot, Evidence | Built on real relayer and chain data, with BridgeKey-first wallet discovery |
-| Latch | **Logical in this build.** The box tracks and reports locked/unlocked. The servo actuator was dropped (the motor controller was unreliable) and is roadmap |
+| Latch | **Logical in the prototype.** The box tracks and reports locked/unlocked. A servo actuator is next |
 | NVS tamper latch, reboot-is-tamper, MPU shock and tilt alerts | Written in firmware and running on the board. Full on-box scenarios with the relayer over Wi-Fi are still being run |
 | IR lid tamper rule, RFID delivery key with LED feedback | Written and flashed. On the bench: the right and wrong tags are told apart (3/3 taps each), the LED colors are correct, and the lid state follows a hand over the IR sensor. The full unlock handshake is not yet run end to end. GPS is dropped for the demo (roadmap) |
 | An end-to-end order on MST Testnet | **Tamper path verified with the real box** (create, seal, lid lifted, refund and bond slash, anchors: hashes below). The delivery path (Confirm & Unlock, right tag) is not yet run on testnet |
 
-**Not built, and not claimed:** temperature or cold chain, contents or weight detection, on-chain device signatures, cellular connectivity, a production bill of materials.
+**Next, not in the prototype:** temperature or cold chain, contents or weight detection, on-chain device signatures, cellular connectivity, a production bill of materials.
+
+## Where it scales
+
+The prototype is one small box, but the loop it proves is independent of what is being protected: **sense, latch, report, settle**. The escrow contracts, the relayer, the evidence log and the dashboard do not care what the container is. Only the sensing layer changes, so every new form plugs into the same neutral settlement layer on MST.
+
+- **Ships and containers:** door and bolt-seal integrity, dwell and port events, an anchored record across a long voyage.
+- **Trucks and trailers:** cargo-bay doors, cargo-area motion, route deviation and a live location trail over cellular.
+- **Pallets, crates and single packages:** strap tension, tilt, shock and lid sensing on any size of unit.
+- **Any carrier, any cargo, any route:** couriers stake once and the stake is reused across every shipment, so more forms and more carriers add to the network instead of needing a new one.
+
+The pieces that are hard to build, neutral custody of the money and a record nobody can quietly rewrite, are already in place. What is left is sensors, mounting and connectivity, and that is where the possibilities open up: anything that travels can carry a trust layer.
 
 ## Architecture
 

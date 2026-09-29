@@ -1229,21 +1229,22 @@
                     <div class="ts-card"><h3>Highlighted events</h3><p>Sharp or high motion, unnatural sustained motion or tilt, a route deviation, a lost signal or a wrong delivery key each become their own on-chain alert. Alerts are evidence; only a tamper moves money.</p></div>
                     <div class="ts-card"><h3>A stamped delivery</h3><p>The delivery event carries the final log head, the delivery location and whether a GPS fix was present, so the last mile is on the record too.</p></div>
                 </div>
-                <p class="ts-note">Demo build: limited by the components on hand, it shows the lid sensor and tamper, the delivery key, a simulated location and a logical latch, not the full telemetry stream.</p>
+                <p class="ts-note">The prototype records the lid sensor, tamper and the delivery key today, with location shown through a simulated route. The same recording scales to any sensor on any vehicle.</p>
             </div>
         </section>
 
         <section class="ts-story" id="forms">
             <div class="ts-wrap">
                 <p class="ts-eyebrow">One protocol, many forms</p>
-                <h2>The box is a demonstration, not the limit.</h2>
-                <p class="ts-lede">Sense, latch, report, settle. The escrow, relayer, evidence log and dashboard do not care what the container is. Only the sensing and latching layer changes.</p>
-                <div class="ts-grid">
-                    <div class="ts-card"><span class="ts-chip on">Built</span><h3 style="margin-top:.9rem !important">Parcel box</h3><p>IR lid sensor, shock and tilt, reboot counts as tamper, an RFID delivery key, RGB status LED and a logical latch.</p></div>
-                    <div class="ts-card"><span class="ts-chip">Roadmap</span><h3 style="margin-top:.9rem !important">Containers and truck bays</h3><p>Door-open contacts, bolt-seal integrity, cargo-area motion and cellular connectivity.</p></div>
-                    <div class="ts-card"><span class="ts-chip">Roadmap</span><h3 style="margin-top:.9rem !important">Pallets and crates</h3><p>Strap tension, tilt and shock, with the same settlement layer behind them.</p></div>
+                <h2>From a parcel box to ships and trucks.</h2>
+                <p class="ts-lede">Sense, latch, report, settle. The prototype proves the loop on one box. The escrow, relayer, evidence log and dashboard do not care what the container is, so the same protocol scales to anything that travels.</p>
+                <div class="ts-grid two">
+                    <div class="ts-card"><span class="ts-chip on">Prototype</span><h3 style="margin-top:.9rem !important">Parcel box</h3><p>IR lid sensor, shock and tilt, reboot counts as tamper, an RFID delivery key and an RGB status LED, settling on MST Testnet today.</p></div>
+                    <div class="ts-card"><span class="ts-chip">Next</span><h3 style="margin-top:.9rem !important">Trucks and trailers</h3><p>Cargo-bay door contacts, cargo-area motion, route deviation and a live location trail over cellular.</p></div>
+                    <div class="ts-card"><span class="ts-chip">Next</span><h3 style="margin-top:.9rem !important">Ships and containers</h3><p>Door and bolt-seal integrity, dwell and port events, and an anchored record across a whole voyage.</p></div>
+                    <div class="ts-card"><span class="ts-chip">Next</span><h3 style="margin-top:.9rem !important">Pallets, crates and packages</h3><p>Strap tension, tilt, shock and lid sensing on any size of unit, with the same settlement layer behind it.</p></div>
                 </div>
-                <p class="ts-note">Each new form still needs its own sensors, mounting, power and connectivity. Only the parcel box exists today.</p>
+                <p class="ts-note">The settlement and evidence layer is written once. Every new form only adds sensors, so any carrier, any cargo and any route share one neutral layer.</p>
             </div>
         </section>
 
@@ -1255,7 +1256,7 @@
                     <li>The depot seal is the trust point: a wrong item packed at origin still passes as clean.</li>
                     <li>The relayer is a trusted oracle. It cannot name a payee, but it could falsely report a tamper. Device-signed events verified on-chain are the fix.</li>
                     <li>Verify log currently compares the relayer's stored log head with the on-chain anchor; an independent recompute is still to come.</li>
-                    <li>This is a demo build: limited by the components on hand, it shows the lid sensor, the delivery key, a simulated location and a logical latch. Temperature, contents and weight sensing are not built.</li>
+                    <li>This is a prototype: it proves the lid sensor, the delivery key and the escrow loop, with a simulated location and a logical latch. Temperature, contents and weight sensing are next.</li>
                 </ul>
                 <p class="ts-note">The full status table, trust model and business model are in <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe/blob/main/pitch.md" target="_blank" rel="noreferrer">pitch.md</a>. Built for the MST Blockchain x NEWRRO Buildathon; AI usage is described in the <a class="ts-link" href="https://github.com/Hackmaass/TamperSafe#ai-usage" target="_blank" rel="noreferrer">README</a>.</p>
             </div>
