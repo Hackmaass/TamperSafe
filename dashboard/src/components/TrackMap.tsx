@@ -57,9 +57,12 @@ export function TrackMap({ trail, badge }: { trail: TrailPoint[]; badge: GpsBadg
         </Pill>
       </div>
       <div ref={el} className="map" />
+      {badge === "SIMULATED" && trail.length > 0 && (
+        <div className="map-note">SIMULATED route for the demo. Display only: nothing on-chain uses it.</div>
+      )}
       {trail.length === 0 && (
         <div className="map-note">
-          {badge === "NO_FIX" ? "No GPS fix (expected indoors). Escrow never depends on GPS." : "Waiting for a position."}
+          {badge === "NO_FIX" ? "The box has no GPS. Use Simulate GPS to show a demo route. Escrow never depends on GPS." : "Waiting for a position."}
         </div>
       )}
     </div>

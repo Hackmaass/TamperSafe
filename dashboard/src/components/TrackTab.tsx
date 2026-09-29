@@ -3,11 +3,40 @@
 // confirmed transactions (each with an explorer link on MST).
 import { useEffect, useMemo, useState } from "react";
 import type { RelayerState } from "../hooks/useRelayer";
-import { fetchOrderLog, type RelayerBox } from "../lib/relayerApi";
+import { fetchOrderLog, setGpsSim, type RelayerBox } from "../lib/relayerApi";
 import { tamperName } from "../lib/codes";
 import { statusLabel } from "../lib/contracts";
 import { Empty, Panel, Pill, ago, shortHex } from "./ui";
 import { TrackMap } from "./TrackMap";
+
+// The box has no GPS (the module has no range here), so the route is a SIMULATION
+// for the demo: display only, always badged SIMULATED, and nothing on-chain uses
+// it. It walks a fixed Bangalore route once per enable.
+const SIM_ROUTE: [number, number][] = [
+  [12.9352, 77.6245],
+  [12.942, 77.615],
+  [12.952, 77.608],
+  [12.961, 77.603],
+  [12.968, 77.598],
+  [12.9716, 77.5946],
+];
+const SIM_SECONDS = 90;
+
+function useSimTrail(active: boolean, now: number): { lat: number; lon: number }[] {
+  const [start, setStart] = useState<number | null>(null);
+  useEffect(() => {
+    setStart((s) => (active ? s ?? Date.now() : null));
+  }, [active]);
+  if (!active || start === null) return [];
+  const f = Math.max(0, Math.min(1, (now - start) / (SIM_SECONDS * 1000))) * (SIM_ROUTE.length - 1); // `now` can lag `start` by up to a tick
+  const whole = Math.floor(f);
+  const pts = SIM_ROUTE.slice(0, whole + 1).map(([lat, lon]) => ({ lat, lon }));
+  const next = SIM_ROUTE[Math.min(whole + 1, SIM_ROUTE.length - 1)]!;
+  const cur = SIM_ROUTE[whole]!;
+  const t = f - whole;
+  pts.push({ lat: cur[0] + (next[0] - cur[0]) * t, lon: cur[1] + (next[1] - cur[1]) * t });
+  return pts;
+}
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -27,6 +56,10 @@ export function TrackTab({ relayer }: { relayer: RelayerState }) {
     () => boxes.find((b) => b.label === selected) ?? boxes.find((b) => b.snapshot) ?? boxes[0],
     [boxes, selected],
   );
+
+  // Hooks must run before any early return below.
+  const simulated = box?.gps === "SIMULATED";
+  const simTrail = useSimTrail(simulated, now);
 
   // The tamper code arrives on the live stream, but a page opened after the
   // fact missed it: recover it from the relayer's stored log for the order.
@@ -111,8 +144,15 @@ export function TrackTab({ relayer }: { relayer: RelayerState }) {
       {onChainOrder && <DoorstepPanel status={onChainOrder.status} failedTaps={boxFeed.filter((f) => f.title === "AUTH_FAILED").length} />}
 
       <div className="grid-2">
-        <Panel title="Location">
-          <TrackMap trail={trail} badge={box.gps} />
+        <Panel
+          title="Location"
+          right={
+            <button className="btn ghost small" onClick={() => void setGpsSim(box.label, !simulated).then(relayer.refresh)}>
+              {simulated ? "Stop simulation" : "Simulate GPS"}
+            </button>
+          }
+        >
+          <TrackMap trail={simulated ? simTrail : trail} badge={box.gps} />
         </Panel>
 
         <div className="stack">
